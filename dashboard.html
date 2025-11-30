@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="dark">
+
+<head>
+  <meta charset="utf-8" />
+  <title>DNA Pattern Explorer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- 🌙 Mishkah - نظام موحد ومبسط -->
+  <script src="/lib/mishkah.js" data-auto="true" data-css="mishkah"></script>
+
+  <!-- Additional Scripts -->
+  <script src="/js/api.js"></script>
+</head>
+
+<body class="bg-[var(--background)] text-[var(--foreground)]">
+  <div id="app"></div>
+
+  <template id="dna-dashboard">
+    <script type="application/json" data-m-env data-m-path="env">
+      {
+        "theme": "dark",
+        "lang": "ar",
+        "dir": "rtl"
+      }
+    </script>
+
+    <script type="application/json" data-m-data data-m-path="data">
+      {
+        "stats": {
+          "models": 0,
+          "experiments": 0,
+          "patterns": 0
+        },
+        "recentExperiments": []
+      }
+    </script>
+
+    <!-- Main Layout -->
+    <div data-m-scope="dna-dashboard" class="flex h-screen flex-col">
+      <!-- Header -->
+      <header class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--card)] px-6 py-4">
+        <div>
+          <h1 class="text-2xl font-bold">🧬 DNA Pattern Explorer</h1>
+          <p class="text-sm text-[var(--muted-foreground)]">مستكشف الأنماط الهندسية في نماذج الذكاء الاصطناعي</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <theme-switcher themes="dark,light"></theme-switcher>
+          <lang-switcher langs="ar,en"></lang-switcher>
+        </div>
+      </header>
+
+      <!-- Navigation -->
+      <nav class="border-b border-[var(--border)] bg-[var(--surface-1)] px-6 py-3">
+        <div class="flex gap-2">
+          <a href="/"
+            class="rounded-lg bg-[var(--primary)] px-4 py-2 font-medium text-[var(--primary-foreground)]">Dashboard</a>
+          <a href="/models.html" class="rounded-lg px-4 py-2 hover:bg-[var(--accent)]">Models</a>
+          <a href="/patterns.html" class="rounded-lg px-4 py-2 hover:bg-[var(--accent)]">Patterns</a>
+          <a href="/viz.html" class="rounded-lg px-4 py-2 hover:bg-[var(--accent)]">Visualization</a>
+          <a href="/experiment.html" class="rounded-lg px-4 py-2 hover:bg-[var(--accent)]">Experiments</a>
+        </div>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="flex-1 overflow-auto p-6">
+        <!-- Stats Grid -->
+        <div class="mb-6 grid gap-4 sm:grid-cols-3">
+          <div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
+            <p class="text-sm text-[var(--muted-foreground)]">Models</p>
+            <strong class="block text-3xl font-bold text-[var(--primary)]">{{data.stats.models}}</strong>
+          </div>
+          <div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
+            <p class="text-sm text-[var(--muted-foreground)]">Experiments</p>
+            <strong class="block text-3xl font-bold text-[var(--accent)]">{{data.stats.experiments}}</strong>
+          </div>
+          <div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
+            <p class="text-sm text-[var(--muted-foreground)]">Patterns</p>
+            <strong class="block text-3xl font-bold text-[var(--secondary)]">{{data.stats.patterns}}</strong>
+          </div>
+        </div>
+
+        <!-- Recent Experiments -->
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
+          <h2 class="mb-4 text-xl font-semibold">Recent Experiments</h2>
+          <div x-if="data.recentExperiments && data.recentExperiments.length > 0" class="space-y-2">
+            <div x-for="exp in data.recentExperiments" :key="exp.id"
+              class="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface-1)] p-4">
+              <div>
+                <strong class="font-medium">{{exp.name}}</strong>
+                <p class="text-sm text-[var(--muted-foreground)]">{{exp.model_name}}</p>
+              </div>
+              <span class="rounded-full px-3 py-1 text-xs font-medium"
+                :class="exp.status === 'completed' ? 'bg-green-500/20 text-green-500' : 'bg-yellow-500/20 text-yellow-500'">
+                {{exp.status}}
+              </span>
+            </div>
+          </div>
+          <p x-if="!data.recentExperiments || data.recentExperiments.length === 0"
+            class="text-center text-[var(--muted-foreground)]">
+            No experiments yet. Start your first experiment!
+          </p>
+        </div>
+      </main>
+    </div>
+  </template>
+
+  <!-- 🚀 App Initialization -->
+  <script>
+    // تحميل البيانات من API
+    async function loadDashboardData() {
+      try {
+        const [models, experiments, patterns] = await Promise.all([
+          API.models.list(),
+          API.experiments.list({ limit: 5 }),
+          API.patterns.list()
+        ]);
+
+        // تحديث الحالة
+        const app = M.HTMLx.apps['dna-dashboard'];
+        if (app) {
+          app.setState({
+            data: {
+              stats: {
+                models: models.length,
+                experiments: experiments.length,
+                patterns: patterns.length
+              },
+              recentExperiments: experiments
+            }
+          });
+          console.log('✅ Dashboard data loaded');
+        }
+      } catch (err) {
+        console.error('❌ Failed to load data:', err);
+      }
+    }
+
+    // انتظر جهوزية Mishkah
+    window.addEventListener('mishkah:auto-ready', function (event) {
+      console.log('🌙 Mishkah ready!', event.detail);
+
+      // تهيئة التطبيق
+      if (M && M.app && M.app.make) {
+        M.app.make({}, { mount: '#app' }).then(function (app) {
+          console.log('🚀 App mounted successfully');
+          // تحميل البيانات
+          setTimeout(loadDashboardData, 500);
+        }).catch(function (err) {
+          console.error('❌ Failed to mount app:', err);
+        });
+      } else {
+        console.error('❌ M.app.make not available');
+      }
+    });
+  </script>
+</body>
+
+</html>
