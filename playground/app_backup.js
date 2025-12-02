@@ -924,13 +924,13 @@ function startApp() {
             //  M.UI.Button({ variant: 'outline', size: 'sm', attrs: { 'gkey': 'edit-example-btn' } }, [t('edit_example', db)]),
             // M.UI.Button({ variant: 'ghost', size: 'sm', attrs: { 'gkey': 'download-json-btn' } }, ['⬇️']),
             // M.UI.Button({ variant: 'ghost', size: 'sm', attrs: { 'gkey': 'import-json-btn' } }, ['⬆️']),
-            //   D.Forms.Button({
-            //      attrs: {
-            //         'gkey': 'run-btn',
-            //        class: 'px-6 py-2 rounded font-bold text-white transition-all',
-            //       style: 'background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);'
-            //   }
-            // }, ['▶ ' + t('run', db)])
+            D.Forms.Button({
+                attrs: {
+                    'gkey': 'run-btn',
+                    class: 'px-6 py-2 rounded font-bold text-white transition-all',
+                    style: 'background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);'
+                }
+            }, ['▶ ' + t('run', db)])
         ])
         ]);
     }
@@ -1085,13 +1085,9 @@ function startApp() {
                 // Full Wiki (WikiViewer)
                 M.UI.WikiViewer({
                     db: db,
-                    wikiId: db.activeWikiId || exampleWikiId, // Fallback to example wiki if no active wiki
+                    wikiId: exampleWikiId || codeWikiId,
                     onNavigate: (id) => {
-                        // We need to update state to change the active wiki article
-                        // This requires access to the app instance or a way to dispatch
-                        if (window.MishkahApp) {
-                            window.MishkahApp.setState(s => ({ ...s, activeWikiId: id }));
-                        }
+                        // Could track navigation if needed
                     }
                 })
             ] : [

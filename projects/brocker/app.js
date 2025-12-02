@@ -267,7 +267,6 @@
   function resolveDir(lang) {
     return lang && lang.toLowerCase().indexOf('ar') === 0 ? 'rtl' : 'ltr';
   }
-
   function isIOSSafari() {
     if (typeof navigator === 'undefined') return false;
     var ua = navigator.userAgent || '';
@@ -301,7 +300,6 @@
       console.warn('[Brocker PWA] Failed to set session skip state', e);
     }
   }
-
   function syncDocumentEnv(env) {
     if (!global.document) return;
     var root = global.document.documentElement;
@@ -475,7 +473,6 @@
     ctx.setState(function (db) {
       var current = db.state && db.state.pwa ? db.state.pwa : {};
       var merged = Object.assign({}, current, patch || {});
-
       // Check session skip
       var skippedThisSession = isPWASkippedThisSession();
 
@@ -486,7 +483,6 @@
       } else {
         merged.showGate = false;
       }
-
       return Object.assign({}, db, { state: Object.assign({}, db.state, { pwa: merged }) });
     });
   }
@@ -862,21 +858,48 @@
           });
       }
     },
-    'ui.pwa.skip': {
+    'ui.logo.home': {
       on: ['click'],
-      gkeys: ['pwa-skip'],
+      gkeys: ['logo-home'],
       handler: function (_event, ctx) {
-        // Store skip state in sessionStorage instead of marking as installed
-        setPWASkippedThisSession(true);
-
-        // Hide the UI temporarily (for this session only)
         ctx.setState(function (db) {
           return Object.assign({}, db, {
             state: Object.assign({}, db.state, {
-              pwa: Object.assign({}, db.state.pwa, { showGate: false })
+              activeView: 'home',
+              selectedListingId: null,
+              selectedBrokerId: null
             })
           });
         });
+      }
+    }, 'ui.pwa.skip': {
+      on: ['click'],
+      gkeys: ['pwa-skip'],
+      handler: function (_event, ctx) {
+        console.log('[PWA Skip] Button clicked!');
+
+        // 1. حفظ في sessionStorage
+        setPWASkippedThisSession(true);
+        console.log('[PWA Skip] Session storage set to true');
+
+        // 2. إخفاء الرسالة FORCED
+        ctx.setState(function (db) {
+          console.log('[PWA Skip] Current PWA state:', db.state.pwa);
+
+          var newState = Object.assign({}, db, {
+            state: Object.assign({}, db.state, {
+              pwa: Object.assign({}, db.state.pwa, {
+                showGate: false,
+                installed: false  // لا نضع true هنا، فقط نخفي
+              })
+            })
+          });
+
+          console.log('[PWA Skip] New PWA state:', newState.state.pwa);
+          return newState;
+        });
+
+        console.log('[PWA Skip] Handler completed');
       }
     },
     'ui.env.theme': {
@@ -913,21 +936,6 @@
 
         console.log('[Brocker PWA] Lang toggle clicked - from', current, 'to', next);
         setEnvLanguage(ctx, next);
-      }
-    },
-    'ui.logo.home': {
-      on: ['click'],
-      gkeys: ['logo-home'],
-      handler: function (_event, ctx) {
-        ctx.setState(function(db) {
-          return Object.assign({}, db, {
-            state: Object.assign({}, db.state, {
-              activeView: 'home',
-              selectedListingId: null,
-              selectedBrokerId: null
-            })
-          });
-        });
       }
     },
     'ui.subscribe.cta': {
@@ -2305,7 +2313,8 @@
 
     var toast = db.state.toast ? ToastBanner(db, db.state.toast) : null;
     var errorBanner = db.state.error ? ErrorBanner(db.state.error) : null;
-    var installBanner = (!db.state.loading && db.state.pwa && !db.state.pwa.showGate && !db.state.pwa.installed)
+    var skippedSession = isPWASkippedThisSession();
+    var installBanner = (!db.state.loading && db.state.pwa && !db.state.pwa.showGate && !db.state.pwa.installed && !skippedSession)
       ? InstallBanner(db)
       : null;
 
@@ -2879,21 +2888,11 @@
   function InstallBanner(db) {
     var pwa = db.state.pwa;
     if (!pwa) return null;
-
-    var isIOS = isIOSSafari();
-    var installText = isIOS
-      ? translate('pwa.installTitleIOS', 'ثبّت التطبيق يدوياً', null, db)
-      : translate('pwa.installTitle', 'حوّل المنصة إلى تطبيق', null, db);
-
-    var descText = isIOS
-      ? translate('pwa.installDescIOS', 'اضغط زر المشاركة ⬆️ ثم اختر "إضافة إلى الشاشة الرئيسية"', null, db)
-      : (pwa.message || translate('pwa.installDesc', 'ثبّت التطبيق لتحصل على تجربة أسرع وإشعارات فورية.', null, db));
-
     return D.Containers.Div({ attrs: { class: tw('fixed bottom-20 inset-x-0 mx-auto w-full max-w-md rounded-3xl border p-4 text-sm shadow-2xl z-40 space-y-2', themed(db, 'border-white/10 bg-slate-900/80 text-white shadow-black/50', 'border-slate-300 bg-white text-slate-900 shadow-slate-500/30')) } }, [
-      D.Text.Strong({ attrs: { class: 'text-base' } }, [installText]),
-      D.Text.P({ attrs: { class: tw('text-xs', themed(db, 'text-slate-400', 'text-slate-600')) } }, [descText]),
+      D.Text.Strong({ attrs: { class: 'text-base' } }, [translate('pwa.installTitle', 'حوّل المنصة إلى تطبيق', null, db)]),
+      D.Text.P({ attrs: { class: tw('text-xs', themed(db, 'text-slate-400', 'text-slate-600')) } }, [pwa.message || translate('pwa.installDesc', 'ثبّت التطبيق لتحصل على تجربة أسرع وإشعارات فورية.', null, db)]),
       D.Containers.Div({ attrs: { class: 'flex gap-2' } }, [
-        D.Forms.Button({ attrs: { type: 'button', class: tw('flex-1 rounded-full py-2 text-sm font-semibold text-white', themed(db, 'bg-emerald-500', 'bg-emerald-600')), 'data-m-gkey': 'pwa-install' } }, [isIOS ? translate('actions.showInstructions', 'التعليمات', null, db) : translate('actions.install', 'تثبيت', null, db)]),
+        D.Forms.Button({ attrs: { type: 'button', class: tw('flex-1 rounded-full py-2 text-sm font-semibold text-white', themed(db, 'bg-emerald-500', 'bg-emerald-600')), 'data-m-gkey': 'pwa-install' } }, [translate('actions.install', 'تثبيت', null, db)]),
         D.Forms.Button({ attrs: { type: 'button', class: tw('flex-1 rounded-full border py-2 text-sm', themed(db, 'border-white/20 text-slate-200', 'border-slate-300 text-slate-700')), 'data-m-gkey': 'pwa-skip' } }, [translate('actions.skip', 'لاحقاً', null, db)])
       ])
     ]);
@@ -2901,28 +2900,12 @@
 
   function InstallGate(db) {
     var pwa = db.state.pwa;
-    var isIOS = isIOSSafari();
-
     return D.Containers.Div({ attrs: { class: tw('fixed inset-0 z-50 grid place-items-center backdrop-blur', themed(db, 'bg-slate-950/95', 'bg-white/95')) } }, [
       D.Containers.Div({ attrs: { class: tw('max-w-sm space-y-4 rounded-3xl border p-6 text-center', themed(db, 'border-white/10 bg-slate-900/80 text-white', 'border-slate-300 bg-white text-slate-900')) } }, [
         D.Text.H2({ attrs: { class: 'text-xl font-semibold' } }, [translate('pwa.installRequired', 'تثبيت التطبيق مطلوب', null, db)]),
-
-        isIOS ? D.Containers.Div({ attrs: { class: 'space-y-2' } }, [
-          D.Text.P({ attrs: { class: tw('text-sm', themed(db, 'text-slate-300', 'text-slate-600')) } }, [
-            translate('pwa.installIOSInstructions', 'على iOS Safari:', null, db)
-          ]),
-          D.Containers.Ol({ attrs: { class: tw('text-sm text-right list-decimal list-inside space-y-1', themed(db, 'text-slate-300', 'text-slate-600')) } }, [
-            D.Containers.Li({}, [translate('pwa.iosStep1', '1. اضغط زر المشاركة (⬆️)', null, db)]),
-            D.Containers.Li({}, [translate('pwa.iosStep2', '2. اختر "إضافة إلى الشاشة الرئيسية"', null, db)]),
-            D.Containers.Li({}, [translate('pwa.iosStep3', '3. اضغط "إضافة"', null, db)])
-          ])
-        ]) : D.Text.P({ attrs: { class: tw('text-sm', themed(db, 'text-slate-300', 'text-slate-600')) } }, [
-          pwa && pwa.message ? pwa.message : translate('pwa.installRequiredDesc', 'لتجربة كاملة على الجوال قم بتثبيت التطبيق كـ PWA.', null, db)
-        ]),
-
-        isIOS ? null : D.Forms.Button({ attrs: { type: 'button', class: tw('w-full rounded-full py-2 text-sm font-semibold text-white', themed(db, 'bg-emerald-500', 'bg-emerald-600')), 'data-m-gkey': 'pwa-install' } }, [translate('actions.installNow', 'تثبيت الآن', null, db)]),
-
-        D.Forms.Button({ attrs: { type: 'button', class: tw('w-full rounded-full border py-2 text-sm', themed(db, 'border-white/20 text-slate-200', 'border-slate-300 text-slate-700')), 'data-m-gkey': 'pwa-skip' } }, [translate('actions.skip', isIOS ? 'تخطي للتصفح' : 'لاحقاً', null, db)])
+        D.Text.P({ attrs: { class: tw('text-sm', themed(db, 'text-slate-300', 'text-slate-600')) } }, [pwa && pwa.message ? pwa.message : translate('pwa.installRequiredDesc', 'لتجربة كاملة على الجوال قم بتثبيت التطبيق كـ PWA.', null, db)]),
+        D.Forms.Button({ attrs: { type: 'button', class: tw('w-full rounded-full py-2 text-sm font-semibold text-white', themed(db, 'bg-emerald-500', 'bg-emerald-600')), 'data-m-gkey': 'pwa-install' } }, [translate('actions.installNow', 'تثبيت الآن', null, db)]),
+        D.Forms.Button({ attrs: { type: 'button', class: tw('w-full rounded-full border py-2 text-sm', themed(db, 'border-white/20 text-slate-200', 'border-slate-300 text-slate-700')), 'data-m-gkey': 'pwa-skip' } }, [translate('actions.skip', 'تخطي للاختبار', null, db)])
       ])
     ]);
   }
@@ -3473,7 +3456,6 @@
         return { schema: entry.schema, moduleEntry: entry };
       });
   }
-
   function fetchPwaConfig() {
     var base = resolveApiBase();
     var url = (base || '') + '/api/pwa/' + encodeURIComponent(BRANCH_ID) + '/' + encodeURIComponent(MODULE_ID);
@@ -3491,23 +3473,13 @@
   function setupPwaHooks(app) {
     if (!app) return;
     var helper = global.MishkahAuto && global.MishkahAuto.pwa;
-
-    // Check if skipped this session
     var skippedThisSession = isPWASkippedThisSession();
-
     if (helper) {
-      var isInstalled = helper.isInstalled();
-      updatePwaState(app, {
-        installed: isInstalled,
-        storageKey: helper.storageKey,
-        showGate: false  // Will be recalculated based on installRequired
-      });
-
+      updatePwaState(app, { installed: helper.isInstalled(), storageKey: helper.storageKey });
       helper.onBeforeInstallPrompt(function () {
         updatePwaState(app, { canPrompt: helper.hasPendingPrompt ? helper.hasPendingPrompt() : true });
       });
     }
-
     fetchPwaConfig().then(function (payload) {
       if (!payload) return;
       if (payload.settings) {
@@ -3516,16 +3488,13 @@
       }
       updatePwaState(app, { manifestUrl: buildManifestUrl() });
 
-      // After settings are loaded, check if we should show gate
-      // Only hide if actually installed OR skipped this session
+      // Check if should show gate after settings loaded
       var currentState = app.database && app.database.state && app.database.state.pwa;
       if (currentState && currentState.installRequired && !currentState.installed && !skippedThisSession) {
         updatePwaState(app, { showGate: true });
       }
     });
-
     bindUiEvent(global, 'appinstalled', function () {
-      setPWASkippedThisSession(false);  // Clear session skip on actual install
       updatePwaState(app, { installed: true, showGate: false });
     });
   }
