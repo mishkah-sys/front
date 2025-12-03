@@ -11,81 +11,87 @@
         window.M.UI = window.M.UI || {};
         const D = window.Mishkah.DSL;
         const U = window.Mishkah.utils;
+        const { tw, token } = U.twcss || { tw: (s) => s, token: (s) => s };
 
-        // Helper: Render Markdown
-        function renderMarkdown(content) {
-            if (!content) return D.Text.P({}, ['']);
-            if (window.Mishkah.UI && window.Mishkah.UI.Markdown) {
-                return window.Mishkah.UI.Markdown({ content: content });
-            } else if (window.marked) {
-                return D.RawHtml({ html: window.marked.parse(content) });
-            }
-            return D.Text.Pre({}, [content]);
+        console.log('🔵 wiki-ui.js loaded, starting component definitions...');
+
+        // Helper: Get translation
+        function t(key, db) {
+            return db?.i18n?.dict[key]?.[db?.env?.lang] || key;
         }
+
+        // Helper: Render markdown to HTML - exactly like mishkah-ui.js
+        function renderMarkdown(content) {
+            if (!content) return '';
+            if (window.marked && window.marked.parse) {
+                return window.marked.parse(content);
+            }
+            return content.replace(/\n/g, '<br>');
+        }
+
+        // RawHtml is now available in Core via D.Containers.RawHtml
 
         // ============================================================
         // WikiLayout
         // ============================================================
         window.M.UI.WikiLayout = function ({ state, actions }) {
+            console.log('[WikiUI] Rendering WikiLayout, activeId:', state.activeId);
             const isMobile = window.innerWidth < 768;
             const showSidebar = state.sidebarOpen;
-            const lang = state.lang;
-            const dir = lang === 'ar' ? 'rtl' : 'ltr';
+            const dir = state.env.dir;
 
             return D.Containers.Div({
                 attrs: {
-                    class: 'flex h-screen w-full overflow-hidden',
-                    style: `background-color: var(--background); color: var(--foreground); direction: ${dir};`
+                    class: tw`flex h-screen w-full overflow-hidden`,
+                    dir: dir,
+                    style: 'background-color: var(--background); color: var(--foreground);'
                 }
             }, [
                 // Mobile Overlay
-                (isMobile && showSidebar) ? D.Containers.Div({
+                D.Containers.Div({
                     attrs: {
-                        class: 'fixed inset-0 bg-black/50 z-40',
-                        gkey: 'wiki:sidebar:close'
+                        gkey: 'wiki:sidebar:close',
+                        class: tw`fixed inset-0 bg-black/50 z-40`,
+                        style: `display: ${(isMobile && showSidebar) ? 'block' : 'none'}`
                     }
-                }) : null,
+                }),
 
                 // Sidebar
                 D.Containers.Div({
                     attrs: {
-                        class: `fixed md:relative w-64 h-full bg-card border-r z-50 transition-transform duration-300`,
-                        style: `transform: ${showSidebar ? 'translateX(0)' : (dir === 'rtl' ? 'translateX(100%)' : 'translateX(-100%)')}; border-color: var(--border); background-color: var(--card);`
+                        class: tw`${isMobile ? 'fixed' : 'relative'} w-64 h-full bg-[var(--card)] border-${dir === 'rtl' ? 'l' : 'r'} border-[var(--border)] z-50 transition-transform duration-300`,
+                        style: `transform: ${showSidebar ? 'translateX(0)' : (dir === 'rtl' ? 'translateX(100%)' : 'translateX(-100%)')}`
                     }
                 }, [
                     window.M.UI.WikiSidebar({ state, actions, isMobile })
                 ]),
 
-                // Main Content Area
+                // Main Content
                 D.Containers.Div({
                     attrs: {
-                        class: 'wiki-main',
-                        style: `
-                            flex: 1;
-                            display: flex;
-                            flex-direction: column;
-                            height: 100%;
-                            overflow: hidden;
-                        `
+                        class: tw`flex-1 flex flex-col h-full overflow-hidden`
                     }
                 }, [
-                    // Header
                     window.M.UI.WikiHeader({ state, actions, isMobile }),
-
-                    // Content
                     D.Containers.Div({
                         attrs: {
-                            class: 'wiki-content',
-                            style: `
-                                flex: 1;
-                                overflow-y: auto;
-                                padding: 2rem;
-                            `
+                            class: tw`flex-1 overflow-y-auto p-8`
                         }
                     }, [
-                        state.viewMode === 'edit'
-                            ? window.M.UI.WikiEditor({ state, actions })
-                            : window.M.UI.WikiViewer({ state, actions })
+                        (function () {
+                            console.log('[WikiUI] Content area - viewMode:', state.viewMode);
+                            if (state.viewMode === 'edit') {
+                                console.log('[WikiUI] Calling WikiEditor');
+                                return window.M.UI.WikiEditor({ state, actions });
+                            } else {
+                                console.log('[WikiUI] Calling WikiViewer');
+                                console.log('[WikiUI] WikiViewer exists?', typeof window.M.UI.WikiViewer);
+                                console.log('[WikiUI] State:', state);
+                                const result = window.M.UI.WikiViewer({ state, actions });
+                                console.log('[WikiUI] WikiViewer returned:', !!result);
+                                return result;
+                            }
+                        })()
                     ])
                 ])
             ]);
@@ -95,133 +101,88 @@
         // WikiHeader
         // ============================================================
         window.M.UI.WikiHeader = function ({ state, actions, isMobile }) {
-            const lang = state.lang;
-
             return D.Containers.Div({
                 attrs: {
-                    class: 'wiki-header',
-                    style: `
-                        display: flex;
-                        align-items: center;
-                        justify-content: space-between;
-                        padding: 1rem 2rem;
-                        border-bottom: 1px solid var(--border);
-                        background: var(--card);
-                        backdrop-filter: blur(10px);
-                    `
+                    class: tw`flex items-center justify-between px-6 py-4 border-b border-[var(--border)] bg-[var(--card)]`
                 }
             }, [
-                // Left side
+                // Left
                 D.Containers.Div({
-                    attrs: {
-                        style: 'display: flex; align-items: center; gap: 1rem;'
-                    }
+                    attrs: { class: tw`flex items-center gap-4` }
                 }, [
                     // Mobile menu button
-                    isMobile ? D.Forms.Button({
+                    D.Forms.Button({
                         attrs: {
                             gkey: 'wiki:sidebar:toggle',
-                            class: 'wiki-menu-btn',
-                            style: `
-                                padding: 0.5rem;
-                                border-radius: 0.375rem;
-                                background: transparent;
-                                border: none;
-                                cursor: pointer;
-                                font-size: 1.5rem;
-                            `
+                            class: tw`${token('btn/ghost')} text-2xl px-2`,
+                            style: `display: ${isMobile ? 'flex' : 'none'}; align-items: center; justify-content: center;`
                         }
-                    }, ['☰']) : null,
-
-                    // Logo & Title
-                    D.Containers.Div({
-                        attrs: {
-                            style: 'display: flex; align-items: center; gap: 0.5rem;'
-                        }
-                    }, [
-                        D.Text.Span({ style: 'font-size: 1.75rem;' }, ['📚']),
-                        D.Text.H1({
-                            attrs: {
-                                style: `
-                                    font-size: 1.5rem;
-                                    font-weight: 700;
-                                    margin: 0;
-                                    background: linear-gradient(135deg, var(--primary), var(--accent));
-                                    -webkit-background-clip: text;
-                                    -webkit-text-fill-color: transparent;
-                                    background-clip: text;
-                                `
-                            }
-                        }, ['Mishkah Wiki'])
-                    ])
+                    }, ['☰']),
+                    D.Text.Span({ attrs: { class: tw`text-2xl` } }, ['📚']),
+                    D.Text.H1({
+                        attrs: { class: tw`text-xl font-bold bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] bg-clip-text text-transparent` }
+                    }, [t('wiki.title', state)])
                 ]),
 
-                // Right side controls
+                // Right
                 D.Containers.Div({
-                    attrs: {
-                        style: 'display: flex; align-items: center; gap: 0.75rem;'
-                    }
+                    attrs: { class: tw`flex items-center gap-2` }
                 }, [
+                    // Refresh button
+                    D.Forms.Button({
+                        attrs: {
+                            gkey: 'wiki:data:refresh',
+                            class: tw`${token('btn/ghost')} ${token('btn/sm')} text-lg px-2`,
+                            title: t('wiki.refresh', state)
+                        }
+                    }, ['🔄']),
+
+                    // Reset button
+                    D.Forms.Button({
+                        attrs: {
+                            gkey: 'wiki:data:reset',
+                            class: tw`${token('btn/ghost')} ${token('btn/sm')} text-lg px-2`,
+                            title: t('wiki.reset', state)
+                        }
+                    }, ['⚠️']),
+
                     // Language toggle
                     D.Forms.Button({
                         attrs: {
                             gkey: 'wiki:lang:toggle',
-                            class: 'wiki-control-btn',
-                            style: `
-                                padding: 0.375rem 0.75rem;
-                                border-radius: 0.375rem;
-                                border: 1px solid var(--border);
-                                background: var(--background);
-                                font-size: 0.875rem;
-                                cursor: pointer;
-                                transition: all 0.2s;
-                            `
+                            class: tw`${token('btn/ghost')} ${token('btn/sm')} text-sm px-3 py-1.5`
                         }
-                    }, [lang === 'ar' ? 'EN' : 'عربي']),
+                    }, [state.env.lang === 'ar' ? 'EN' : 'عربي']),
 
-                    // Theme toggle
+                    // Theme toggle - simple toggle button
                     D.Forms.Button({
                         attrs: {
                             gkey: 'wiki:theme:toggle',
-                            class: 'wiki-control-btn',
-                            style: `
-                                padding: 0.375rem 0.75rem;
-                                border-radius: 0.375rem;
-                                border: 1px solid var(--border);
-                                background: var(--background);
-                                font-size: 1.25rem;
-                                cursor: pointer;
-                                transition: all 0.2s;
-                            `
+                            class: tw`${token('btn/ghost')} text-xl px-2`,
+                            style: 'min-width: 2.5rem; display: flex; align-items: center; justify-content: center;'
                         }
-                    }, [state.theme === 'dark' ? '☀️' : '🌙'])
+                    }, [state.env.theme === 'dark' ? '☀️' : '🌙'])
                 ])
             ]);
         };
 
         // ============================================================
-        // WikiSidebar - Tree Navigation
+        // WikiSidebar
         // ============================================================
         window.M.UI.WikiSidebar = function ({ state, actions, isMobile }) {
-            const lang = state.lang;
+            const lang = state.env.lang;
             const articles = state.articles;
             const expanded = state.expandedNodes || new Set();
 
-            // Build tree from parents_ids
             function buildTree(items) {
                 const map = {};
                 const roots = [];
-
-                // Create map
                 items.forEach(item => {
                     map[item.id] = { ...item, children: [] };
                 });
-
-                // Link children to parents
                 items.forEach(item => {
                     const node = map[item.id];
                     if (item.parents_ids && item.parents_ids.length > 0) {
-                        // Last parent is direct parent
                         const parentId = item.parents_ids[item.parents_ids.length - 1];
                         if (map[parentId]) {
                             map[parentId].children.push(node);
@@ -232,11 +193,9 @@
                         roots.push(node);
                     }
                 });
-
                 return roots;
             }
 
-            // Render tree recursively  
             function renderTree(nodes, depth = 0) {
                 return nodes.sort((a, b) => (a.sort || 999) - (b.sort || 999)).map(node => {
                     const hasChildren = node.children && node.children.length > 0;
@@ -245,70 +204,50 @@
                     const title = node.title[lang] || node.title['en'];
 
                     return D.Containers.Div({
-                        attrs: {
-                            style: `margin-left: ${depth * 1}rem;`
-                        }
+                        attrs: { style: `margin-left: ${depth * 1}rem` }
                     }, [
-                        // Node row
                         D.Containers.Div({
                             attrs: {
-                                class: 'wiki-tree-node',
-                                style: `
-                                    display: flex;
-                                    align-items: center;
-                                    gap: 0.25rem;
-                                    padding: 0.5rem;
-                                    margin: 0.125rem 0;
-                                    border-radius: 0.375rem;
-                                    transition: all 0.15s;
-                                    ${isActive ? 'background-color: var(--secondary); color: var(--secondary-foreground); font-weight: 600;' : ''}
-                                `
+                                class: tw`flex items-center gap-1 px-2 py-1.5 my-0.5 rounded-md transition-all cursor-pointer ${isActive ? 'bg-[var(--secondary)] text-[var(--secondary-foreground)] font-semibold' : 'hover:bg-[var(--accent)]'}`
                             }
                         }, [
-                            // Expand/collapse toggle
-                            hasChildren ? D.Forms.Button({
+                            // Expand/collapse - always render but hide if no children
+                            D.Forms.Button({
                                 attrs: {
                                     gkey: 'wiki:node:toggle',
                                     'data-node-id': node.id,
-                                    style: `
-                                        width: 1.25rem;
-                                        height: 1.25rem;
-                                        display: flex;
-                                        align-items: center;
-                                        justify-content: center;
-                                        border: none;
-                                        background: transparent;
-                                        cursor: pointer;
-                                        font-size: 0.75rem;
-                                        padding: 0;
-                                    `
+                                    class: tw`w-5 h-5 flex items-center justify-center border-0 bg-transparent cursor-pointer text-xs p-0`,
+                                    style: `display: ${hasChildren ? 'flex' : 'none'}`
                                 }
-                            }, [isExpanded ? '▼' : '▶']) : D.Containers.Div({ style: 'width: 1.25rem;' }),
+                            }, [isExpanded ? '▼' : '▶']),
 
-                            // Icon & Title
+                            // Spacer when no children
+                            D.Containers.Div({
+                                attrs: {
+                                    class: tw`w-5`,
+                                    style: `display: ${hasChildren ? 'none' : 'block'}`
+                                }
+                            }),
+
                             D.Containers.Div({
                                 attrs: {
                                     gkey: 'wiki:article:navigate',
                                     'data-article-id': node.id,
-                                    style: 'display: flex; align-items: center; gap: 0.5rem; flex: 1; cursor: pointer;'
+                                    class: tw`flex items-center gap-2 flex-1 cursor-pointer`
                                 }
                             }, [
-                                D.Text.Span({ style: 'opacity: 0.7; font-size: 1rem;' }, [hasChildren ? '📁' : '📄']),
-                                D.Text.Span({ style: 'font-size: 0.875rem;' }, [title])
+                                D.Text.Span({ attrs: { class: tw`text-base opacity-70` } }, [hasChildren ? '📁' : '📄']),
+                                D.Text.Span({ attrs: { class: tw`text-sm` } }, [title])
                             ])
                         ]),
 
-                        // Children (if expanded)
-                        (hasChildren && isExpanded) ? D.Containers.Div({
+                        // Children container - always render but hide if not expanded
+                        D.Containers.Div({
                             attrs: {
-                                class: 'wiki-tree-children',
-                                style: `
-                                    border-left: 2px solid var(--border);
-                                    margin-left: 0.5rem;
-                                    padding-left: 0.25rem;
-                                `
+                                class: tw`border-l-2 border-[var(--border)] ml-2 pl-1`,
+                                style: `display: ${(hasChildren && isExpanded) ? 'block' : 'none'}`
                             }
-                        }, renderTree(node.children, depth + 1)) : null
+                        }, hasChildren ? renderTree(node.children, depth + 1) : [])
                     ]);
                 });
             }
@@ -316,119 +255,51 @@
             const tree = buildTree(articles);
 
             return D.Containers.Div({
-                attrs: {
-                    class: 'wiki-sidebar',
-                    style: `
-                        width: 100%;
-                        height: 100%;
-                        display: flex;
-                        flex-direction: column;
-                    `
-                }
+                attrs: { class: tw`w-full h-full flex flex-col` }
             }, [
-                // Header with controls
+                // Header
                 D.Containers.Div({
-                    attrs: {
-                        class: 'wiki-sidebar-header',
-                        style: `
-                            padding: 1rem;
-                            border-bottom: 1px solid var(--border);
-                        `
-                    }
+                    attrs: { class: tw`p-4 border-b border-[var(--border)]` }
                 }, [
-                    // New Article button
                     D.Forms.Button({
                         attrs: {
                             gkey: 'wiki:article:new',
-                            class: 'wiki-new-btn',
-                            style: `
-                                width: 100%;
-                                padding: 0.75rem 1rem;
-                                border-radius: 0.5rem;
-                                background: var(--primary);
-                                color: var(--primary-foreground);
-                                border: none;
-                                font-weight: 600;
-                                font-size: 0.875rem;
-                                cursor: pointer;
-                            display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                gap: 0.5rem;
-                                margin-bottom: 0.75rem;
-                            `
+                            class: tw`w-full ${token('btn/solid')} ${token('btn/md')} flex items-center justify-center gap-2 mb-3`
                         }
                     }, [
-                        D.Text.Span({ style: 'font-size: 1.25rem;' }, ['+']),
-                        D.Text.Span({}, [lang === 'ar' ? 'مقالة جديدة' : 'New Article'])
+                        D.Text.Span({ attrs: { class: tw`text-xl` } }, ['+']),
+                        D.Text.Span({}, [t('wiki.new_article', state)])
                     ]),
-
-                    // Expand/Collapse buttons
                     D.Containers.Div({
-                        attrs: {
-                            style: 'display: flex; gap: 0.5rem; margin-bottom: 0.75rem;'
-                        }
+                        attrs: { class: tw`flex gap-2 mb-3` }
                     }, [
                         D.Forms.Button({
                             attrs: {
                                 gkey: 'wiki:tree:expand-all',
-                                style: `
-                                    flex: 1;
-                                    padding: 0.375rem;
-                                    border-radius: 0.375rem;
-                                    border: 1px solid var(--border);
-                                    background: var(--background);
-                                    font-size: 0.75rem;
-                                    cursor: pointer;
-                                `
+                                class: tw`flex-1 ${token('btn/ghost')} ${token('btn/sm')} text-xs`
                             }
-                        }, [lang === 'ar' ? 'فتح الكل' : 'Expand All']),
+                        }, [t('wiki.expand_all', state)]),
                         D.Forms.Button({
                             attrs: {
                                 gkey: 'wiki:tree:collapse-all',
-                                style: `
-                                    flex: 1;
-                                    padding: 0.375rem;
-                                    border-radius: 0.375rem;
-                                    border: 1px solid var(--border);
-                                    background: var(--background);
-                                    font-size: 0.75rem;
-                                    cursor: pointer;
-                                `
+                                class: tw`flex-1 ${token('btn/ghost')} ${token('btn/sm')} text-xs`
                             }
-                        }, [lang === 'ar' ? 'طي الكل' : 'Collapse All'])
+                        }, [t('wiki.collapse_all', state)])
                     ]),
-
-                    // Search
                     window.M.UI.Input({
                         attrs: {
                             type: 'text',
-                            placeholder: lang === 'ar' ? 'بحث...' : 'Search...',
+                            placeholder: t('wiki.search', state),
                             gkey: 'wiki:search',
-                            class: 'wiki-search',
-                            style: `
-                                width: 100%;
-                                padding: 0.5rem 0.75rem;
-                                border-radius: 0.375rem;
-                                border: 1px solid var(--border);
-                                background: var(--background);
-                                font-size: 0.875rem;
-                            `,
+                            class: tw`${token('input')} w-full`,
                             value: state.searchQuery
                         }
                     })
                 ]),
 
-                // Tree content
+                // Tree
                 D.Containers.Div({
-                    attrs: {
-                        class: 'wiki-tree',
-                        style: `
-                            flex: 1;
-                            overflow-y: auto;
-                            padding: 0.5rem;
-                        `
-                    }
+                    attrs: { class: tw`flex-1 overflow-y-auto p-2` }
                 }, [
                     state.searchQuery
                         ? D.Containers.Div({},
@@ -438,16 +309,7 @@
                                     attrs: {
                                         gkey: 'wiki:article:navigate',
                                         'data-article-id': a.id,
-                                        style: `
-                                            width: 100%;
-                                            text-align: left;
-                                            padding: 0.5rem;
-                                            border-radius: 0.375rem;
-                                            background: transparent;
-                                            border: none;
-                                            cursor: pointer;
-                                            font-size: 0.875rem;
-                                        `
+                                        class: tw`w-full text-left px-2 py-1.5 rounded-md bg-transparent border-0 cursor-pointer text-sm hover:bg-[var(--accent)]`
                                     }
                                 }, [a.title[lang] || a.title['en']]))
                         )
@@ -456,50 +318,24 @@
 
                 // Footer
                 D.Containers.Div({
-                    attrs: {
-                        style: `
-                            padding: 1rem;
-                            border-top: 1px solid var(--border);
-                            display: flex;
-                            gap: 0.5rem;
-                        `
-                    }
+                    attrs: { class: tw`p-4 border-t border-[var(--border)] flex gap-2` }
                 }, [
                     D.Forms.Button({
                         attrs: {
                             gkey: 'wiki:data:export',
-                            style: `
-                                flex: 1;
-                                padding: 0.5rem;
-                                border-radius: 0.375rem;
-                                border: 1px solid var(--border);
-                                background: var(--background);
-                                font-size: 0.75rem;
-                                cursor: pointer;
-                            `
+                            class: tw`flex-1 ${token('btn/ghost')} ${token('btn/sm')} text-xs`
                         }
-                    }, [lang === 'ar' ? 'تصدير' : 'Export']),
+                    }, [t('wiki.export', state)]),
                     D.Forms.Label({
-                        attrs: {
-                            style: `
-                                flex: 1;
-                                padding: 0.5rem;
-                                border-radius: 0.375rem;
-                                border: 1px solid var(--border);
-                                background: var(--background);
-                                font-size: 0.75rem;
-                                cursor: pointer;
-                                text-align: center;
-                            `
-                        }
+                        attrs: { class: tw`flex-1 ${token('btn/ghost')} ${token('btn/sm')} text-xs text-center cursor-pointer` }
                     }, [
-                        lang === 'ar' ? 'استيراد' : 'Import',
+                        t('wiki.import', state),
                         window.M.UI.Input({
                             attrs: {
                                 type: 'file',
                                 accept: '.json',
                                 gkey: 'wiki:data:import',
-                                style: 'display: none;'
+                                class: tw`hidden`
                             }
                         })
                     ])
@@ -507,188 +343,136 @@
             ]);
         };
 
+        console.log('✅ WikiSidebar defined:', typeof window.M.UI.WikiSidebar);
+
         // ============================================================
-        // WikiViewer - Article Display
+        // WikiViewer
         // ============================================================
         window.M.UI.WikiViewer = function ({ state, actions }) {
-            const article = state.articles.find(a => a.id === state.activeId);
-            const lang = state.lang;
+            console.log('🚨🚨🚨 [WikiUI] WikiViewer ENTERED AT 09:51! state:', !!state, 'articles:', state?.articles?.length);
 
-            if (!article) {
-                return D.Containers.Div({
-                    attrs: {
-                        style: `
-                            display: flex;
-                            flex-direction: column;
-                            align-items: center;
-                            justify-center;
-                            height: 100%;
-                            color: var(--muted-foreground);
-                        `
-                    }
-                }, [
-                    D.Text.Span({ style: 'font-size: 4rem; opacity: 0.2; margin-bottom: 1rem;' }, ['📚']),
-                    D.Text.H3({ style: 'font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem;' },
-                        [lang === 'ar' ? 'لم يتم تحديد مقالة' : 'No Article Selected']),
-                    D.Text.P({ style: 'opacity: 0.7;' },
-                        [lang === 'ar' ? 'اختر مقالة من القائمة' : 'Select an article from the sidebar'])
-                ]);
-            }
+            try {
+                const article = state.articles.find(a => a.id === state.activeId);
+                const lang = state.env.lang;
 
-            const title = article.title[lang] || article.title['en'];
-            let content = article.content[lang] || article.content['en'] || '';
-            const siblings = article.siblings || [];
+                console.log('[WikiUI] WikiViewer - activeId:', state.activeId, 'article found:', !!article);
 
-            // Smart Linking
-            if (article.words && Array.isArray(article.words)) {
-                article.words.forEach(wordObj => {
-                    const word = Object.keys(wordObj)[0];
-                    const targetId = wordObj[word];
-                    const regex = new RegExp(`\\b(${word})\\b`, 'gi');
-                    content = content.replace(regex,
-                        `<span class="wiki-link" data-wiki-link="${targetId}">$1</span>`);
-                });
-            }
-
-            return D.Containers.Div({
-                attrs: {
-                    class: 'wiki-article',
-                    style: `
-                        max-width: 800px;
-                        margin: 0 auto;
-                        width: 100%;
-                    `
-                }
-            }, [
-                // Article header
-                D.Containers.Div({
-                    attrs: {
-                        style: `
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: flex-start;
-                            gap: 2rem;
-                            margin-bottom: 2rem;
-                            padding-bottom: 1.5rem;
-                            border-bottom: 2px solid var(--border);
-                        `
-                    }
-                }, [
-                    D.Containers.Div({ style: 'flex: 1;' }, [
-                        D.Text.H1({
-                            attrs: {
-                                style: `
-                                    font-size: 2.5rem;
-                                    font-weight: 700;
-                                    margin: 0 0 1rem 0;
-                                    line-height: 1.2;
-                                `
-                            }
-                        }, [title]),
-                        D.Text.P({
-                            attrs: {
-                                style: `
-                                    font-size: 0.875rem;
-                                    color: var(--muted-foreground);
-                                    margin: 0;
-                                `
-                            }
-                        }, [
-                            lang === 'ar' ? 'آخر تحديث: ' : 'Last updated: ',
-                            article.updatedAt ? new Date(article.updatedAt).toLocaleDateString() : '-'
-                        ])
-                    ]),
-                    D.Forms.Button({
+                if (!article) {
+                    return D.Containers.Div({
                         attrs: {
-                            gkey: 'wiki:article:edit',
-                            style: `
-                                padding: 0.75rem 1.5rem;
-                                border-radius: 0.5rem;
-                                background: var(--secondary);
-                                color: var(--secondary-foreground);
-                                border: none;
-                                font-weight: 600;
-                                cursor: pointer;
-                                display: flex;
-                                align-items: center;
-                                gap: 0.5rem;
-                            `
+                            class: tw`flex flex-col items-center justify-center h-full ${token('muted')}`
                         }
                     }, [
-                        D.Text.Span({}, ['✏️']),
-                        D.Text.Span({}, [lang === 'ar' ? 'تعديل' : 'Edit'])
-                    ])
-                ]),
+                        D.Text.Span({ attrs: { class: tw`text-6xl opacity-20 mb-4` } }, ['📚']),
+                        D.Text.H3({ attrs: { class: tw`text-2xl font-semibold mb-2` } }, [t('wiki.no_article', state)]),
+                        D.Text.P({ attrs: { class: tw`opacity-70` } }, [t('wiki.select_article', state)])
+                    ]);
+                }
 
-                // Article content
-                D.Containers.Div({
-                    attrs: {
-                        class: 'wiki-content-body prose prose-lg',
-                        gkey: 'wiki:link:click',
-                        style: `
-                            margin-bottom: 3rem;
-                            line-height: 1.8;
-                            direction: ${lang === 'ar' ? 'rtl' : 'ltr'};
-                        `
-                    }
-                }, [
-                    renderMarkdown(content)
-                ]),
+                const title = article.title[lang] || article.title['en'];
+                let content = article.content[lang] || article.content['en'] || '';
+                const siblings = article.siblings || [];
 
-                // Related Articles (siblings)
-                (siblings && siblings.length > 0) ? D.Containers.Div({
-                    attrs: {
-                        style: `
-                            margin-top: 3rem;
-                            padding-top: 2rem;
-                            border-top: 1px solid var(--border);
-                        `
-                    }
+                console.log('[WikiUI] Rendering article:', article.id, 'title:', title);
+
+                // Smart Linking: Process markdown then add smart links
+                let processedContent = renderMarkdown(content);
+                if (article.words && Array.isArray(article.words)) {
+                    article.words.forEach(wordObj => {
+                        const word = Object.keys(wordObj)[0];
+                        const targetId = wordObj[word];
+                        const regex = new RegExp(`\\b(${word})\\b`, 'gi');
+                        processedContent = processedContent.replace(regex,
+                            `<span class="wiki-link" data-wiki-link="${targetId}">$1</span>`);
+                    });
+                }
+
+                return D.Containers.Div({
+                    attrs: { class: tw`max-w-3xl mx-auto w-full` }
                 }, [
-                    D.Text.H3({
-                        attrs: {
-                            style: `
-                                font-size: 1.25rem;
-                                font-weight: 600;
-                                margin-bottom: 1rem;
-                            `
-                        }
-                    }, [lang === 'ar' ? '📎 مقالات ذات صلة' : '📎 Related Articles']),
+                    // Header
                     D.Containers.Div({
-                        attrs: {
-                            style: 'display: flex; flex-direction: column; gap: 0.75rem;'
-                        }
-                    }, siblings.map(sib =>
+                        attrs: { class: tw`flex justify-between items-start gap-8 mb-8 pb-6 border-b-2 border-[var(--border)]` }
+                    }, [
+                        D.Containers.Div({ attrs: { class: tw`flex-1` } }, [
+                            D.Text.H1({
+                                attrs: { class: tw`text-4xl font-bold mb-4 leading-tight` }
+                            }, [title]),
+                            D.Text.P({
+                                attrs: { class: tw`text-sm ${token('muted')}` }
+                            }, [
+                                t('wiki.last_updated', state) + ' ',
+                                article.updatedAt ? new Date(article.updatedAt).toLocaleDateString() : '-'
+                            ])
+                        ]),
                         D.Forms.Button({
                             attrs: {
-                                gkey: 'wiki:article:navigate',
-                                'data-article-id': sib.id,
-                                style: `
-                                    padding: 0.75rem 1rem;
-                                    border-radius: 0.5rem;
-                                    border: 1px solid var(--border);
-                                    background: var(--card);
-                                    text-align: left;
-                                    cursor: pointer;
-                                    display: flex;
-                                    align-items: center;
-                                    gap: 0.5rem;
-                                `
+                                gkey: 'wiki:article:edit',
+                                class: tw`${token('btn/soft')} ${token('btn/md')} flex items-center gap-2`
                             }
                         }, [
-                            D.Text.Span({ style: 'opacity: 0.7;' }, ['→']),
-                            D.Text.Span({}, [sib.title[lang] || sib.title['en']])
+                            D.Text.Span({}, ['✏️']),
+                            D.Text.Span({}, [t('wiki.edit', state)])
                         ])
-                    ))
-                ]) : null
-            ]);
+                    ]),
+
+                    // Content - using D.RawHtml (now available in Core!)
+                    D.Containers.Div({
+                        attrs: {
+                            gkey: 'wiki:link:click',
+                            class: tw`wiki-content mb-12`,
+                            style: `direction: ${lang === 'ar' ? 'rtl' : 'ltr'}`
+                        }
+                    }, [
+                        D.Containers.RawHtml({
+                            html: processedContent,
+                            attrs: {
+                                class: tw`wiki-markdown-content prose prose-lg max-w-none`
+                            }
+                        })
+                    ]),
+
+                    // Related - always render but hide if empty
+                    D.Containers.Div({
+                        attrs: {
+                            class: tw`mt-12 pt-8 border-t border-[var(--border)]`,
+                            style: `display: ${(siblings && siblings.length > 0) ? 'block' : 'none'}`
+                        }
+                    }, [
+                        D.Text.H3({
+                            attrs: { class: tw`text-xl font-semibold mb-4` }
+                        }, ['📎 ' + t('wiki.related', state)]),
+                        D.Containers.Div({
+                            attrs: { class: tw`flex flex-col gap-3` }
+                        }, siblings.map(sib =>
+                            D.Forms.Button({
+                                attrs: {
+                                    gkey: 'wiki:article:navigate',
+                                    'data-article-id': sib.id,
+                                    class: tw`${token('list/item')} cursor-pointer text-left`
+                                }
+                            }, [
+                                D.Text.Span({ attrs: { class: tw`${token('muted')}` } }, ['→']),
+                                D.Text.Span({ attrs: { class: tw`ml-2` } }, [sib.title[lang] || sib.title['en']])
+                            ])
+                        ))
+                    ])
+                ]);
+            } catch (error) {
+                console.error('[WikiUI] WikiViewer error:', error);
+                return D.Containers.Div({
+                    attrs: { class: tw`p-8 text-red-500` }
+                }, ['Error rendering article: ' + error.message]);
+            }
         };
 
+        console.log('✅ WikiViewer defined:', typeof window.M.UI.WikiViewer);
+
         // ============================================================
-        // WikiEditor - Full Editor with All Fields
+        // WikiEditor
         // ============================================================
         window.M.UI.WikiEditor = function ({ state, actions }) {
-            const lang = state.lang;
+            const lang = state.env.lang;
             const isNew = !state.activeId;
             const article = state.articles.find(a => a.id === state.activeId) || {
                 id: '',
@@ -701,281 +485,208 @@
                 sort: 999
             };
 
-            const formData = {
-                id: article.id,
-                title: { ...article.title },
-                content: { ...article.content },
-                keywords: [...(article.keywords || [])],
-                words: [...(article.words || [])],
-                parents_ids: [...(article.parents_ids || [])],
-                siblings: [...(article.siblings || [])],
-                sort: article.sort || 999
-            };
+            const formData = state._formData;
+            const getValue = (field, def) => formData[field] !== undefined ? formData[field] : def;
 
-            const FormField = (label, children) => D.Containers.Div({
-                attrs: { style: 'margin-bottom: 1.5rem;' }
+            const FormField = (label, child) => D.Containers.Div({
+                attrs: { class: tw`mb-6` }
             }, [
                 D.Forms.Label({
-                    attrs: {
-                        style: `
-                            display: block;
-                            font-weight: 600;
-                            margin-bottom: 0.5rem;
-                            font-size: 0.875rem;
-                        `
-                    }
+                    attrs: { class: tw`${token('label')} block mb-2` }
                 }, [label]),
-                children
+                child
             ]);
 
             return D.Containers.Div({
-                attrs: {
-                    style: 'max-width: 900px; margin: 0 auto;'
-                }
+                attrs: { class: tw`max-w-4xl mx-auto` }
             }, [
                 D.Text.H2({
-                    attrs: {
-                        style: `
-                            font-size: 2rem;
-                            font-weight: 700;
-                            margin-bottom: 2rem;
-                        `
-                    }
-                }, [isNew ? (lang === 'ar' ? '➕ مقالة جديدة' : '➕ New Article') : (lang === 'ar' ? '✏️ تعديل المقالة' : '✏️ Edit Article')]),
+                    attrs: { class: tw`text-3xl font-bold mb-8` }
+                }, [isNew ? '➕ ' + t('wiki.new_article', state) : '✏️ ' + t('wiki.edit', state)]),
 
-                // ID field (for new articles)
-                isNew ? FormField('Article ID', window.M.UI.Input({
-                    attrs: {
-                        class: 'wiki-input',
-                        style: `
-                            width: 100%;
-                            padding: 0.75rem;
-                            border-radius: 0.5rem;
-                            border: 1px solid var(--border);
-                            background: var(--background);
-                        `,
-                        placeholder: 'unique-article-id',
-                        value: formData.id,
-                        oninput: (e) => formData.id = e.target.value
-                    }
-                })) : null,
-
-                // Titles
+                // ID field - always render but hide if not new
                 D.Containers.Div({
-                    attrs: {
-                        style: 'display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;'
-                    }
+                    attrs: { style: `display: ${isNew ? 'block' : 'none'}` }
                 }, [
-                    FormField('Title (English)', window.M.UI.Input({
+                    FormField('Article ID', window.M.UI.Input({
                         attrs: {
-                            style: `width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--background);`,
-                            value: formData.title.en,
-                            oninput: (e) => formData.title.en = e.target.value
-                        }
-                    })),
-                    FormField('العنوان (عربي)', window.M.UI.Input({
-                        attrs: {
-                            style: `width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--background);`,
-                            dir: 'rtl',
-                            value: formData.title.ar,
-                            oninput: (e) => formData.title.ar = e.target.value
+                            class: tw`${token('input')} w-full`,
+                            placeholder: 'unique-article-id',
+                            value: getValue('id', article.id),
+                            gkey: 'wiki:form:input',
+                            'data-field': 'id'
                         }
                     }))
                 ]),
 
-                // Content
                 D.Containers.Div({
-                    attrs: {
-                        style: 'display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;'
-                    }
+                    attrs: { class: tw`grid grid-cols-2 gap-4 mb-6` }
+                }, [
+                    FormField('Title (English)', window.M.UI.Input({
+                        attrs: {
+                            class: tw`${token('input')} w-full`,
+                            value: getValue('title_en', article.title.en),
+                            gkey: 'wiki:form:input',
+                            'data-field': 'title_en'
+                        }
+                    })),
+                    FormField('العنوان (عربي)', window.M.UI.Input({
+                        attrs: {
+                            class: tw`${token('input')} w-full`,
+                            dir: 'rtl',
+                            value: getValue('title_ar', article.title.ar),
+                            gkey: 'wiki:form:input',
+                            'data-field': 'title_ar'
+                        }
+                    }))
+                ]),
+
+                D.Containers.Div({
+                    attrs: { class: tw`grid grid-cols-2 gap-4 mb-6` }
                 }, [
                     FormField('Content (English - Markdown)', window.M.UI.Textarea({
                         attrs: {
-                            style: `
-                                width: 100%;
-                                padding: 0.75rem;
-                                border-radius: 0.5rem;
-                                border: 1px solid var(--border);
-                                background: var(--background);
-                                font-family: monospace;
-                                font-size: 0.875rem;
-                                min-height: 300px;
-                                resize: vertical;
-                            `,
-                            oninput: (e) => formData.content.en = e.target.value
+                            class: tw`${token('input')} w-full font-mono text-sm min-h-[300px] resize-y`,
+                            gkey: 'wiki:form:input',
+                            'data-field': 'content_en'
                         }
-                    }, [formData.content.en])),
+                    }, [getValue('content_en', article.content.en)])),
                     FormField('المحتوى (عربي - Markdown)', window.M.UI.Textarea({
                         attrs: {
-                            style: `
-                                width: 100%;
-                                padding: 0.75rem;
-                                border-radius: 0.5rem;
-                                border: 1px solid var(--border);
-                                background: var(--background);
-                                font-family: monospace;
-                                font-size: 0.875rem;
-                                min-height: 300px;
-                                resize: vertical;
-                            `,
+                            class: tw`${token('input')} w-full font-mono text-sm min-h-[300px] resize-y`,
                             dir: 'rtl',
-                            oninput: (e) => formData.content.ar = e.target.value
+                            gkey: 'wiki:form:input',
+                            'data-field': 'content_ar'
                         }
-                    }, [formData.content.ar]))
+                    }, [getValue('content_ar', article.content.ar)]))
                 ]),
 
-                // Keywords
                 FormField('Keywords (comma-separated)', window.M.UI.Input({
                     attrs: {
-                        style: `width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--background);`,
+                        class: tw`${token('input')} w-full`,
                         placeholder: 'react, hooks, state',
-                        value: formData.keywords.join(', '),
-                        oninput: (e) => formData.keywords = e.target.value.split(',').map(k => k.trim()).filter(Boolean)
+                        value: getValue('keywords', article.keywords.join(', ')),
+                        gkey: 'wiki:form:input',
+                        'data-field': 'keywords'
                     }
                 })),
 
-                // Parents IDs
                 FormField('Parent IDs (comma-separated)', window.M.UI.Input({
                     attrs: {
-                        style: `width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--background);`,
+                        class: tw`${token('input')} w-full`,
                         placeholder: 'react, react-hooks',
-                        value: formData.parents_ids.join(', '),
-                        oninput: (e) => formData.parents_ids = e.target.value.split(',').map(k => k.trim()).filter(Boolean)
+                        value: getValue('parents_ids', article.parents_ids.join(', ')),
+                        gkey: 'wiki:form:input',
+                        'data-field': 'parents_ids'
                     }
                 })),
 
-                // Words (JSON format)
                 FormField('Words (JSON: [{"word": "target-id"}])', window.M.UI.Textarea({
                     attrs: {
-                        style: `
-                            width: 100%;
-                            padding: 0.75rem;
-                            border-radius: 0.5rem;
-                            border: 1px solid var(--border);
-                            background: var(--background);
-                            font-family: monospace;
-                            font-size: 0.875rem;
-                            min-height: 100px;
-                        `,
+                        class: tw`${token('input')} w-full font-mono text-sm min-h-[100px]`,
                         placeholder: '[{"React": "react"}, {"Hook": "react-hooks"}]',
-                        oninput: (e) => {
-                            try {
-                                formData.words = JSON.parse(e.target.value);
-                            } catch (err) { }
-                        }
+                        gkey: 'wiki:form:input',
+                        'data-field': 'words'
                     }
-                }, [JSON.stringify(formData.words, null, 2)])),
+                }, [getValue('words', JSON.stringify(article.words, null, 2))])),
 
-                // Siblings (JSON format)
                 FormField('Related Articles (JSON: [{"id": "...", "title": {...}}])', window.M.UI.Textarea({
                     attrs: {
-                        style: `
-                            width: 100%;
-                            padding: 0.75rem;
-                            border-radius: 0.5rem;
-                            border: 1px solid var(--border);
-                            background: var(--background);
-                            font-family: monospace;
-                            font-size: 0.875rem;
-                            min-height: 100px;
-                        `,
+                        class: tw`${token('input')} w-full font-mono text-sm min-h-[100px]`,
                         placeholder: '[{"id": "react-component", "title": {"en": "Components", "ar": "المكونات"}}]',
-                        oninput: (e) => {
-                            try {
-                                formData.siblings = JSON.parse(e.target.value);
-                            } catch (err) { }
-                        }
+                        gkey: 'wiki:form:input',
+                        'data-field': 'siblings'
                     }
-                }, [JSON.stringify(formData.siblings, null, 2)])),
+                }, [getValue('siblings', JSON.stringify(article.siblings, null, 2))])),
 
-                // Sort order
                 FormField('Sort Order', window.M.UI.Input({
                     attrs: {
                         type: 'number',
-                        style: `width: 200px; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--background);`,
-                        value: formData.sort,
-                        oninput: (e) => formData.sort = parseInt(e.target.value) || 999
+                        class: tw`${token('input')} w-48`,
+                        value: getValue('sort', article.sort),
+                        gkey: 'wiki:form:input',
+                        'data-field': 'sort'
                     }
                 })),
 
-                // Action buttons
+                // Actions
                 D.Containers.Div({
-                    attrs: {
-                        style: 'display: flex; gap: 1rem; margin-top: 2rem;'
-                    }
+                    attrs: { class: tw`flex gap-4 mt-8` }
                 }, [
                     D.Forms.Button({
                         attrs: {
                             gkey: 'wiki:article:save',
-                            style: `
-                                padding: 0.75rem 2rem;
-                                border-radius: 0.5rem;
-                                background: var(--primary);
-                                color: var(--primary-foreground);
-                                border: none;
-                                font-weight: 600;
-                                cursor: pointer;
-                            `
+                            class: tw`${token('btn/solid')} ${token('btn/lg')}`
                         }
-                    }, [lang === 'ar' ? '💾 حفظ' : '💾 Save']),
+                    }, ['💾 ' + t('wiki.save', state)]),
                     D.Forms.Button({
                         attrs: {
                             gkey: 'wiki:article:cancel',
-                            style: `
-                                padding: 0.75rem 2rem;
-                                border-radius: 0.5rem;
-                                border: 1px solid var(--border);
-                                background: var(--background);
-                                cursor: pointer;
-                            `
+                            class: tw`${token('btn/ghost')} ${token('btn/lg')}`
                         }
-                    }, [lang === 'ar' ? 'إلغاء' : 'Cancel']),
-                    !isNew ? D.Forms.Button({
+                    }, [t('wiki.cancel', state)]),
+
+                    // Delete button - always render but hide if new
+                    D.Forms.Button({
                         attrs: {
                             gkey: 'wiki:article:delete',
-                            style: `
-                                padding: 0.75rem 2rem;
-                                border-radius: 0.5rem;
-                                background: var(--destructive);
-                                color: var(--destructive-foreground);
-                                border: none;
-                                cursor: pointer;
-                                margin-left: auto;
-                            `
+                            class: tw`${token('btn/destructive')} ${token('btn/lg')} ml-auto`,
+                            style: `display: ${!isNew ? 'block' : 'none'}`
                         }
-                    }, [lang === 'ar' ? '🗑️ حذف' : '🗑️ Delete']) : null
+                    }, ['🗑️ ' + t('wiki.delete', state)])
                 ])
             ]);
         };
 
-        // WikiMini (for embedding)
-        window.M.UI.WikiMini = function (props) {
-            const { wikiId, lang = 'en' } = props;
-            const articles = window.codewikidb || [];
-            const article = articles.find(a => a.id === wikiId);
-
-            if (!article) {
-                return D.Containers.Div({
-                    attrs: { style: 'padding: 2rem; text-align: center; color: var(--muted-foreground);' }
-                }, [lang === 'ar' ? 'لا توجد معلومات' : 'No information']);
-            }
-
-            const content = article.content[lang] || article.content['en'] || '';
-
-            return D.Containers.Div({
-                attrs: {
-                    class: 'wiki-mini prose',
-                    style: `
-                        padding: 1.5rem;
-                        direction: ${lang === 'ar' ? 'rtl' : 'ltr'};
-                    `
-                }
-            }, [renderMarkdown(content)]);
-        };
-
-        // Add inline styles for wiki-link
+        // Styles - Enhanced dark mode
         const styleTag = document.createElement('style');
         styleTag.textContent = `
+            /* Enhanced Dark Mode Colors */
+            [data-theme="dark"] {
+                --background: hsl(222, 20%, 11%);
+                --foreground: hsl(210, 20%, 98%);
+                --card: hsl(222, 20%, 14%);
+                --card-foreground: hsl(210, 20%, 98%);
+                --popover: hsl(222, 20%, 14%);
+                --popover-foreground: hsl(210, 20%, 98%);
+                --primary: hsl(210, 100%, 60%);
+                --primary-foreground: hsl(222, 47%, 11%);
+                --secondary: hsl(217, 19%, 22%);
+                --secondary-foreground: hsl(210, 20%, 98%);
+                --muted: hsl(217, 19%, 18%);
+                --muted-foreground: hsl(215, 16%, 65%);
+                --accent: hsl(217, 19%, 22%);
+                --accent-foreground: hsl(210, 20%, 98%);
+                --destructive: hsl(0, 63%, 50%);
+                --destructive-foreground: hsl(210, 20%, 98%);
+                --border: hsl(217, 19%, 22%);
+                --input: hsl(217, 19%, 22%);
+                --ring: hsl(210, 100%, 60%);
+                --surface-1: hsl(217, 19%, 18%);
+            }
+            
+            /* Enhanced Light Mode */
+            [data-theme="light"] {
+                --background: hsl(0, 0%, 100%);
+                --foreground: hsl(222, 47%, 11%);
+                --card: hsl(0, 0%, 100%);
+                --card-foreground: hsl(222, 47%, 11%);
+                --primary: hsl(221, 83%, 53%);
+                --primary-foreground: hsl(210, 40%, 98%);
+                --secondary: hsl(210, 40%, 96%);
+                --secondary-foreground: hsl(222, 47%, 11%);
+                --muted: hsl(210, 40%, 96%);
+                --muted-foreground: hsl(215, 16%, 47%);
+                --accent: hsl(210, 40%, 96%);
+                --accent-foreground: hsl(222, 47%, 11%);
+                --destructive: hsl(0, 84%, 60%);
+                --destructive-foreground: hsl(210, 40%, 98%);
+                --border: hsl(214, 32%, 91%);
+                --input: hsl(214, 32%, 91%);
+                --ring: hsl(221, 83%, 53%);
+                --surface-1: hsl(210, 40%, 98%);
+            }
+            
             .wiki-link {
                 color: var(--primary);
                 text-decoration: none;
@@ -988,10 +699,41 @@
                 text-decoration: underline;
                 opacity: 0.8;
             }
+            .wiki-markdown-content {
+                line-height: 1.8;
+                color: var(--foreground);
+            }
+            .wiki-markdown-content h1, .wiki-markdown-content h2, .wiki-markdown-content h3 {
+                margin-top: 2rem;
+                margin-bottom: 1rem;
+                font-weight: 700;
+                color: var(--foreground);
+            }
+            .wiki-markdown-content p {
+                margin-bottom: 1rem;
+            }
+            .wiki-markdown-content code {
+                background: var(--surface-1);
+                padding: 0.2em 0.4em;
+                border-radius: 0.25rem;
+                font-size: 0.9em;
+                color: var(--foreground);
+            }
+            .wiki-markdown-content pre {
+                background: var(--surface-1);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                overflow-x: auto;
+                margin: 1rem 0;
+            }
+            .wiki-markdown-content pre code {
+                background: transparent;
+                padding: 0;
+            }
         `;
         document.head.appendChild(styleTag);
 
-        console.log('✅ Mishkah Wiki UI loaded');
+        console.log('✅ Mishkah Wiki UI loaded with enhanced dark mode');
     }
 
     waitForDSL();

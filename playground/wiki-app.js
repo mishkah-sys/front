@@ -8,6 +8,29 @@
     const DB_VERSION = 1;
 
     // ============================================================
+    // i18n Dictionary
+    // ============================================================
+    const I18N_DICT = {
+        'wiki.title': { ar: 'ويكي مشكاة', en: 'Mishkah Wiki' },
+        'wiki.new_article': { ar: 'مقالة جديدة', en: 'New Article' },
+        'wiki.edit': { ar: 'تعديل', en: 'Edit' },
+        'wiki.save': { ar: 'حفظ', en: 'Save' },
+        'wiki.cancel': { ar: 'إلغاء', en: 'Cancel' },
+        'wiki.delete': { ar: 'حذف', en: 'Delete' },
+        'wiki.export': { ar: 'تصدير', en: 'Export' },
+        'wiki.import': { ar: 'استيراد', en: 'Import' },
+        'wiki.search': { ar: 'بحث...', en: 'Search...' },
+        'wiki.no_results': { ar: 'لا توجد نتائج', en: 'No results found' },
+        'wiki.no_article': { ar: 'لم يتم اختيار مقالة', en: 'No article selected' },
+        'wiki.select_article': { ar: 'اختر مقالة من القائمة', en: 'Select an article from the sidebar' },
+        'wiki.related': { ar: 'مقالات ذات صلة', en: 'Related Articles' },
+        'wiki.last_updated': { ar: 'آخر تحديث:', en: 'Last updated:' },
+        'wiki.confirm_delete': { ar: 'هل أنت متأكد؟', en: 'Are you sure?' },
+        'wiki.reset': { ar: 'إعادة تعيين', en: 'Reset Data' },
+        'wiki.refresh': { ar: 'تحديث', en: 'Refresh' }
+    };
+
+    // ============================================================
     // Database Service
     // ============================================================
     const WikiService = {
@@ -159,32 +182,52 @@
             initialActiveId = initialArticles[0].id;
         }
 
+        const storedLang = urlLang || localStorage.getItem('wiki_lang') || 'en';
+        const storedTheme = urlTheme || localStorage.getItem('wiki_theme') || 'light';
+
         const initialState = {
+            env: {
+                theme: storedTheme,
+                lang: storedLang,
+                dir: storedLang === 'ar' ? 'rtl' : 'ltr'
+            },
+            i18n: {
+                dict: I18N_DICT
+            },
             articles: initialArticles,
             activeId: initialActiveId,
             viewMode: 'view',
             searchQuery: '',
-            lang: urlLang || 'en',
-            theme: urlTheme || 'light',
             sidebarOpen: true,
             expandedNodes: new Set(),
+            _formData: {},
             loading: false
         };
 
         // Apply theme
-        if (initialState.theme) {
-            document.documentElement.setAttribute('data-theme', initialState.theme);
-            document.documentElement.className = initialState.theme;
-        }
+        document.documentElement.setAttribute('data-theme', storedTheme);
+        document.documentElement.className = storedTheme;
 
         let appInstance = null;
 
         const actions = {
-            setLang: (l) => appInstance.setState(s => ({ ...s, lang: l })),
+            setLang: (l) => {
+                console.log('[WikiApp] Setting language:', l);
+                localStorage.setItem('wiki_lang', l);
+                appInstance.setState(s => ({
+                    ...s,
+                    env: { ...s.env, lang: l, dir: l === 'ar' ? 'rtl' : 'ltr' }
+                }));
+            },
             setTheme: (t) => {
-                appInstance.setState(s => ({ ...s, theme: t }));
+                console.log('[WikiApp] Setting theme:', t);
+                localStorage.setItem('wiki_theme', t);
                 document.documentElement.setAttribute('data-theme', t);
                 document.documentElement.className = t;
+                appInstance.setState(s => ({
+                    ...s,
+                    env: { ...s.env, theme: t }
+                }));
             },
             navigate: (id) => {
                 // Save to history
@@ -227,7 +270,32 @@
                 return { ...s, expandedNodes: allParentIds };
             }),
             collapseAll: () => appInstance.setState(s => ({ ...s, expandedNodes: new Set() })),
-            edit: () => appInstance.setState(s => ({ ...s, viewMode: 'edit' })),
+            edit: () => {
+                console.log('[WikiApp] Entering edit mode');
+                appInstance.setState(s => {
+                    const article = s.articles.find(a => a.id === s.activeId);
+                    if (!article) {
+                        return { ...s, viewMode: 'edit', _formData: {} };
+                    }
+
+                    // Pre-fill form data with current article values
+                    const formData = {
+                        id: article.id,
+                        title_en: article.title.en || '',
+                        title_ar: article.title.ar || '',
+                        content_en: article.content.en || '',
+                        content_ar: article.content.ar || '',
+                        keywords: (article.keywords || []).join(', '),
+                        parent_ids: (article.parents_ids || []).join(', '),
+                        words: JSON.stringify(article.words || [], null, 2),
+                        siblings: JSON.stringify(article.siblings || [], null, 2),
+                        sort: article.sort || 0
+                    };
+
+                    console.log('[WikiApp] Pre-filled form data:', formData);
+                    return { ...s, viewMode: 'edit', _formData: formData };
+                });
+            },
             cancelEdit: () => appInstance.setState(s => ({ ...s, viewMode: 'view' })),
             saveArticle: async (article, user) => {
                 await WikiService.save(article, user);
@@ -281,12 +349,12 @@
             'wiki:theme:toggle': {
                 on: ['click'],
                 gkeys: ['wiki:theme:toggle'],
-                handler: (e, ctx) => actions.setTheme(ctx.getState().theme === 'dark' ? 'light' : 'dark')
+                handler: (e, ctx) => actions.setTheme(ctx.getState().env.theme === 'dark' ? 'light' : 'dark')
             },
             'wiki:lang:toggle': {
                 on: ['click'],
                 gkeys: ['wiki:lang:toggle'],
-                handler: (e, ctx) => actions.setLang(ctx.getState().lang === 'ar' ? 'en' : 'ar')
+                handler: (e, ctx) => actions.setLang(ctx.getState().env.lang === 'ar' ? 'en' : 'ar')
             },
             'wiki:article:navigate': {
                 on: ['click'],
@@ -376,7 +444,7 @@
                 gkeys: ['wiki:article:delete'],
                 handler: (e, ctx) => {
                     const state = ctx.getState();
-                    if (state.activeId && confirm(state.lang === 'ar' ? 'هل أنت متأكد؟' : 'Are you sure?')) {
+                    if (state.activeId && confirm(state.env.lang === 'ar' ? 'هل أنت متأكد؟' : 'Are you sure?')) {
                         actions.deleteArticle(state.activeId);
                     }
                 }
