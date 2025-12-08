@@ -17,6 +17,64 @@
             sort: 0
         },
         {
+            id: 'vue',
+            title: { en: 'Vue.js', ar: 'فيو' },
+            keywords: ['vue', 'composition api', 'reactivity'],
+            content: {
+                en: 'Vue blends a templating-first experience with a powerful reactivity core. Templates stay declarative while Composition API (setup, ref, computed) keeps logic organized and testable. Single File Components bundle template, script, and style for tidy delivery.',
+                ar: 'تجمع Vue بين قوالب سهلة القراءة ونواة تفاعلية قوية. تبقى القوالب تصريحـية بينما ينظم Composition API (setup وref وcomputed) المنطق بشكل قابل للاختبار. ملفات المكونات الفردية تجمع القالب والسكريبت والتنسيق في حزمة مرتبة.'
+            },
+            words: [
+                { 'Composition API': 'vue-composition' },
+                { 'reactivity': 'reactivity' }
+            ],
+            parents_ids: ['frontend-core'],
+            siblings: [],
+            sort: 2
+        },
+        {
+            id: 'angular',
+            title: { en: 'Angular', ar: 'أنجولار' },
+            keywords: ['angular', 'components', 'modules'],
+            content: {
+                en: 'Angular is a batteries-included framework: dependency injection, RxJS-powered async flows, forms, routing, and a CLI for scaffolding. Components declare inputs/outputs, templates use structural directives like *ngFor, and services hold shared logic.',
+                ar: 'أنجولار إطار متكامل يوفر الحقن الاعتمادي، تدفقات RxJS، النماذج، التوجيه، وأداة CLI للتوليد. تعلن المكونات عن المدخلات والمخرجات، وتستخدم القوالب توجيهات بنيوية مثل *ngFor، بينما تحتفظ الخدمات بالمنطق المشترك.'
+            },
+            words: [
+                { 'RxJS': 'rxjs' },
+                { 'components': 'component-model' }
+            ],
+            parents_ids: ['frontend-core'],
+            siblings: [],
+            sort: 3
+        },
+        {
+            id: 'svelte',
+            title: { en: 'Svelte', ar: 'سفيلت' },
+            keywords: ['svelte', 'compiler'],
+            content: {
+                en: 'Svelte shifts work to compile time: state assignments trigger updates, and the compiler outputs tiny DOM instructions. Stores provide shared state, while transitions and animations are first-class for polished UI without heavy runtime.',
+                ar: 'ينقل Svelte العمل إلى وقت الترجمة؛ تؤدي إسنادات الحالة إلى تحديثات، ويولد المترجم تعليمات DOM صغيرة. توفر المتاجر حالة مشتركة، وتعد الانتقالات والحركات جزءاً أساسياً لواجهة مصقولة دون تشغيلية ثقيلة.'
+            },
+            words: [{ 'stores': 'state' }],
+            parents_ids: ['frontend-core'],
+            siblings: [],
+            sort: 4
+        },
+        {
+            id: 'jquery-library',
+            title: { en: 'jQuery', ar: 'جي كويري' },
+            keywords: ['jquery', 'dom', 'events'],
+            content: {
+                en: 'jQuery simplifies DOM traversal, event handling, and AJAX with a compact API. It remains useful for quick scripting, legacy codebases, and progressive enhancement where shipping a full SPA stack is unnecessary.',
+                ar: 'تُبسط jQuery التنقل في DOM ومعالجة الأحداث وطلبات AJAX عبر واجهة مضغوطة. ما زالت مفيدة للسكربتات السريعة، والمشاريع القديمة، والتحسين التدريجي عندما لا تكون حزمة SPA كاملة ضرورية.'
+            },
+            words: [{ 'DOM': 'dom' }],
+            parents_ids: ['frontend-core'],
+            siblings: [],
+            sort: 5
+        },
+        {
             id: 'react',
             title: { en: 'React', ar: 'رياكت' },
             keywords: ['react', 'jsx', 'component', 'library', 'ui'],

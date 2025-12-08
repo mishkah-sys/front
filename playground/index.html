@@ -214,6 +214,27 @@
         .prose a:hover {
             color: var(--primary-foreground);
         }
+
+        /* CodeMirror height fix - prevent double scrollbar */
+        .mishkah-codemirror-container {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .mishkah-codemirror-container .CodeMirror {
+            height: 100% !important;
+        }
+
+        .CodeMirror-scroll {
+            overflow-y: auto !important;
+            overflow-x: auto !important;
+        }
+
+        /* CRITICAL: Hide duplicate CodeMirror instances */
+        .mishkah-codemirror-container .CodeMirror~.CodeMirror {
+            display: none !important;
+        }
     </style>
 </head>
 

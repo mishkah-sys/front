@@ -32,7 +32,7 @@
           "theme": "dark",
           "lang": "ar",
           "dir": "rtl",
-          "currency": "SAR",
+          "currency": "USD",
           "fonts": {
             "ar": "Almarai",
             "en": "Inter",
@@ -142,8 +142,8 @@
           <p class="text-sm text-[var(--muted-foreground)]">{trans('quick.tagline')}</p>
         </div>
         <div class="flex items-center gap-2">
-          <theme-switcher class="hero-switcher" themes="dark,light"></theme-switcher>
-          <lang-switcher class="hero-switcher" langs="ar,en"></lang-switcher>
+          <ThemeSwitcher onclick="setTheme(event, ctx)" theme={state.env.theme} />
+          <LangSwitcher onclick="setLang(event, ctx)" lang={state.env.lang} />
         </div>
       </header>
 
@@ -151,7 +151,7 @@
         <section class="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-[var(--shadow)]">
           <p class="text-sm text-[var(--muted-foreground)]">{trans('quick.metrics.revenue')}</p>
           <strong class="mt-1 block text-3xl font-semibold text-[var(--primary)]">
-            {formatCurrency(state.data.metrics.revenue, state.env.currency || 'SAR', state.env.lang)}
+            {formatCurrency(state.data.metrics.revenue, state.env.currency || 'USD', state.env.lang)}
           </strong>
         </section>
         <section class="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-[var(--shadow)]">
@@ -446,7 +446,7 @@
 
       function formatCurrency(amount, currency, lang) {
         var safeLang = ensureLanguage(lang);
-        var code = currency && typeof currency === 'string' ? currency : 'SAR';
+        var code = currency && typeof currency === 'string' ? currency : 'USD';
         var numeric = Number(amount);
         if (!Number.isFinite(numeric)) numeric = 0;
         try {
@@ -1494,6 +1494,42 @@
           initCountdownDirectives();
         }, 16);
       }
+
+      // Theme Logic
+      function setTheme(e, ctx) {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+
+        const theme = btn.dataset.value;
+
+        ctx.setState(function (s) {
+          s.env.theme = theme;
+          return s;
+        });
+
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        window.dispatchEvent(new CustomEvent('theme-change', { detail: theme }));
+      }
+
+      // Language Logic
+      function setLang(e, ctx) {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+
+        const lang = btn.dataset.value;
+
+        ctx.setState(function (s) {
+          s.env.lang = lang;
+          s.env.dir = lang === 'ar' ? 'rtl' : 'ltr';
+          return s;
+        });
+
+        document.documentElement.lang = lang;
+        document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        localStorage.setItem('lang', lang);
+      }
+
     </script>
   </template>
 </body>

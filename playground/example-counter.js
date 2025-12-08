@@ -109,8 +109,6 @@
 <head>
   <meta charset="UTF-8">
   <title>Mishkah Angular Counter</title>
-  <script src="../lib/mishkah.core.js"></script>
-  <script src="../lib/mishkah-react.js"></script>
   <script src="../lib/mishkah-angular.js"></script>
   <style>
     body { font-family: system-ui; background:#0a0a0a; color:#f1f5f9; display:grid; place-items:center; min-height:100vh; }
@@ -158,9 +156,6 @@
 <head>
   <meta charset="UTF-8">
   <title>Alpine-like Counter</title>
-  <script src="../lib/mishkah.core.js"></script>
-  <script src="../lib/mishkah-react.js"></script>
-  <script src="../lib/mishkah-svelte.js"></script>
   <script src="../lib/mishkah-alpine.js"></script>
   <style>
     body { font-family: system-ui; background:#0f172a; color:#e2e8f0; padding:40px; }
@@ -172,24 +167,27 @@
   <div x-data="{ count: 0, open: false }" class="card">
     <h2>Alpine Style Counter</h2>
     <p>Count: <strong x-text="count"></strong></p>
-    <button @click="count++">Increment</button>
+    <button @click="count">Increment++</button>
     <button @click="open = !open">Toggle Details</button>
     <div x-show="open" style="margin-top: 10px; padding: 10px; background: #0b1224; border-radius:12px;">
       <p>This is toggled via <code>x-show</code>!</p>
       <p>Current count is <span x-text="count"></span></p>
     </div>
   </div>
+  
+   <script>
+        // Start the engine
+        Mishkah.Alpine.start();
+    </script>
 </body>
 </html>`;
 
   const svelteRunes = `<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Mishkah Svelte Counter</title>
-  <script src="../lib/mishkah.core.js"></script>
-  <script src="../lib/mishkah-react.js"></script>
-  <script src="../lib/mishkah-svelte.js"></script>
+  <head>
+    <meta charset="UTF-8">
+    <title>Mishkah Svelte Counter</title>
+    <script src="../lib/mishkah-svelte.js"></script>
   <style>
     body { font-family: system-ui; background:#0b1224; color:#e2e8f0; display:grid; place-items:center; min-height:100vh; }
     .card { padding:24px; border-radius:14px; background:#111827; border:1px solid #1f2937; width:420px; }
@@ -231,8 +229,6 @@
 <head>
   <meta charset="UTF-8">
   <title>SolidJS Signals Counter</title>
-  <script src="../lib/mishkah.core.js"></script>
-  <script src="../lib/mishkah-react.js"></script>
   <script src="../lib/mishkah-solid.js"></script>
   <style>
     body { font-family: system-ui; background:#020617; color:#e2e8f0; display:grid; place-items:center; min-height:100vh; }

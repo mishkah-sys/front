@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="../mishkah.core.js"></script>
+
+</head>
+
+<body>
+  <div id="app"></div>
+
+  <script>
+    // Mishkah DSL Counter with i18n & Theme Support
+    // Mishkah DSL Counter - Clean Version
+    const database = {
+      env: { theme: 'dark', lang: 'ar' },
+      i18n: {
+        dict: {
+          'name.youssef': { ar: 'م يوسف حسين', en: 'Eng Youssef Hussein' },
+          'name.ahmed': { ar: 'م أحمد محمد', en: 'eng Ahmed Mohamed' },
+          'lables.click': { ar: 'اضغط هنا', en: 'click here' },
+
+        }
+      }
+    };
+
+    const orders = {
+      'test': {
+        on: ['click'],
+        gkeys: ['test'],
+        handler: (e, ctx) => {
+          alert(JSON.stringify(ctx.getState()))
+
+        }
+      },
+
+    };
+
+    function App(db) {
+      const D = Mishkah.DSL;
+      const t = (key) => db.i18n?.dict[key]?.[db.env.lang] || key;
+
+      return D.Containers.Div({
+        attrs: {
+          class: 'counter-app',
+        }
+      }, [
+        // Animated background orbs
+        D.Text.H1({
+          attrs: { style: 'color:red' }
+        }
+          , [t('name.ahmed')])
+        , D.Misc.Br(),
+        D.Text.H5({
+          attrs: { style: 'color:blue' }
+        }
+
+          , [t('name.youssef')])
+        , D.Misc.Br()
+
+        , D.Forms.Button({
+          gkey: "test",
+          attrs: { style: 'background:black;color:#fff;font-size:50px;', gkey: "test" }
+        }, [t('lables.click')])
+
+
+      ]);
+    }
+
+
+    Mishkah.app.setBody(App);
+
+    // Initialize
+    const app = Mishkah.app.createApp(database, orders);
+    app.mount('#app');
+
+  </script>
+</body>
+
+</html>

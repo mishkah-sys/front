@@ -77,20 +77,8 @@
                             class: tw`flex-1 overflow-y-auto p-8`
                         }
                     }, [
-                        (function () {
-                            console.log('[WikiUI] Content area - viewMode:', state.viewMode);
-                            if (state.viewMode === 'edit') {
-                                console.log('[WikiUI] Calling WikiEditor');
-                                return window.M.UI.WikiEditor({ state, actions });
-                            } else {
-                                console.log('[WikiUI] Calling WikiViewer');
-                                console.log('[WikiUI] WikiViewer exists?', typeof window.M.UI.WikiViewer);
-                                console.log('[WikiUI] State:', state);
-                                const result = window.M.UI.WikiViewer({ state, actions });
-                                console.log('[WikiUI] WikiViewer returned:', !!result);
-                                return result;
-                            }
-                        })()
+                        D.Containers.Div({}, [window.M.UI.WikiViewer({ state, actions })]),
+                        window.M.UI.WikiEditorModal({ state, actions })
                     ])
                 ])
             ]);
@@ -404,14 +392,25 @@
                                 article.updatedAt ? new Date(article.updatedAt).toLocaleDateString() : '-'
                             ])
                         ]),
-                        D.Forms.Button({
-                            attrs: {
-                                gkey: 'wiki:article:edit',
-                                class: tw`${token('btn/soft')} ${token('btn/md')} flex items-center gap-2`
-                            }
-                        }, [
-                            D.Text.Span({}, ['✏️']),
-                            D.Text.Span({}, [t('wiki.edit', state)])
+                        D.Containers.Div({ attrs: { class: tw`flex items-center gap-2` } }, [
+                            D.Forms.Button({
+                                attrs: {
+                                    gkey: 'wiki:article:edit',
+                                    class: tw`${token('btn/soft')} ${token('btn/md')} flex items-center gap-2`
+                                }
+                            }, [
+                                D.Text.Span({}, ['✏️']),
+                                D.Text.Span({}, [t('wiki.edit', state)])
+                            ]),
+                            D.Forms.Button({
+                                attrs: {
+                                    gkey: 'wiki:article:delete',
+                                    class: tw`${token('btn/destructive')} ${token('btn/md')} flex items-center gap-2`
+                                }
+                            }, [
+                                D.Text.Span({}, ['🗑️']),
+                                D.Text.Span({}, [t('wiki.delete', state)])
+                            ])
                         ])
                     ]),
 
@@ -470,171 +469,125 @@
         // ============================================================
         window.M.UI.WikiEditor = function ({ state, actions }) {
             const lang = state.env.lang;
-            const isNew = !state.activeId;
-            const article = state.articles.find(a => a.id === state.activeId) || {
+            const draft = state.editorDraft || {
                 id: '',
-                title: { en: '', ar: '' },
-                content: { en: '', ar: '' },
+                title_en: '',
+                title_ar: '',
+                content_en: '',
+                content_ar: '',
                 keywords: [],
-                words: [],
                 parents_ids: [],
+                words: [],
                 siblings: [],
-                sort: 999
+                sort: 0
             };
-
-            const formData = state._formData;
-            const getValue = (field, def) => formData[field] !== undefined ? formData[field] : def;
+            const isNew = !draft.id;
 
             const FormField = (label, child) => D.Containers.Div({
                 attrs: { class: tw`mb-6` }
             }, [
-                D.Forms.Label({
-                    attrs: { class: tw`${token('label')} block mb-2` }
-                }, [label]),
+                D.Forms.Label({ attrs: { class: tw`${token('label')} block mb-2` } }, [label]),
                 child
             ]);
 
-            return D.Containers.Div({
-                attrs: { class: tw`max-w-4xl mx-auto` }
-            }, [
-                D.Text.H2({
-                    attrs: { class: tw`text-3xl font-bold mb-8` }
-                }, [isNew ? '➕ ' + t('wiki.new_article', state) : '✏️ ' + t('wiki.edit', state)]),
-
-                // ID field - always render but hide if not new
-                D.Containers.Div({
-                    attrs: { style: `display: ${isNew ? 'block' : 'none'}` }
-                }, [
-                    FormField('Article ID', window.M.UI.Input({
+            const renderChips = (items, field, placeholder) => D.Containers.Div({ attrs: { class: tw`space-y-2` } }, [
+                D.Containers.Div({ attrs: { class: tw`flex flex-wrap gap-2` } },
+                    (items || []).map((val, idx) => D.Containers.Div({
+                        attrs: { class: tw`flex items-center gap-1 px-2 py-1 rounded bg-[var(--secondary)]` }
+                    }, [
+                        D.Text.Span({ attrs: { class: tw`text-sm` } }, [val || '']),
+                        D.Forms.Button({
+                            attrs: { gkey: 'wiki:form:list-remove', 'data-field': field, 'data-index': idx, class: tw`text-xs` },
+                            class: tw`${token('btn/ghost')} ${token('btn/sm')}`
+                        }, ['✖'])
+                    ]))
+                ),
+                D.Containers.Div({ attrs: { class: tw`flex gap-2` } }, [
+                    window.M.UI.Input({
                         attrs: {
                             class: tw`${token('input')} w-full`,
-                            placeholder: 'unique-article-id',
-                            value: getValue('id', article.id),
-                            gkey: 'wiki:form:input',
-                            'data-field': 'id'
+                            placeholder,
+                            value: ''
                         }
-                    }))
-                ]),
-
-                D.Containers.Div({
-                    attrs: { class: tw`grid grid-cols-2 gap-4 mb-6` }
-                }, [
-                    FormField('Title (English)', window.M.UI.Input({
-                        attrs: {
-                            class: tw`${token('input')} w-full`,
-                            value: getValue('title_en', article.title.en),
-                            gkey: 'wiki:form:input',
-                            'data-field': 'title_en'
-                        }
-                    })),
-                    FormField('العنوان (عربي)', window.M.UI.Input({
-                        attrs: {
-                            class: tw`${token('input')} w-full`,
-                            dir: 'rtl',
-                            value: getValue('title_ar', article.title.ar),
-                            gkey: 'wiki:form:input',
-                            'data-field': 'title_ar'
-                        }
-                    }))
-                ]),
-
-                D.Containers.Div({
-                    attrs: { class: tw`grid grid-cols-2 gap-4 mb-6` }
-                }, [
-                    FormField('Content (English - Markdown)', window.M.UI.Textarea({
-                        attrs: {
-                            class: tw`${token('input')} w-full font-mono text-sm min-h-[300px] resize-y`,
-                            gkey: 'wiki:form:input',
-                            'data-field': 'content_en',
-                            value: getValue('content_en', article.content.en)
-                        }
-                    })),
-                    FormField('المحتوى (عربي - Markdown)', window.M.UI.Textarea({
-                        attrs: {
-                            class: tw`${token('input')} w-full font-mono text-sm min-h-[300px] resize-y`,
-                            dir: 'rtl',
-                            gkey: 'wiki:form:input',
-                            'data-field': 'content_ar',
-                            value: getValue('content_ar', article.content.ar)
-                        }
-                    }))
-                ]),
-
-                FormField('Keywords (comma-separated)', window.M.UI.Input({
-                    attrs: {
-                        class: tw`${token('input')} w-full`,
-                        placeholder: 'react, hooks, state',
-                        value: getValue('keywords', article.keywords.join(', ')),
-                        gkey: 'wiki:form:input',
-                        'data-field': 'keywords'
-                    }
-                })),
-
-                FormField('Parent IDs (comma-separated)', window.M.UI.Input({
-                    attrs: {
-                        class: tw`${token('input')} w-full`,
-                        placeholder: 'react, react-hooks',
-                        value: getValue('parents_ids', article.parents_ids.join(', ')),
-                        gkey: 'wiki:form:input',
-                        'data-field': 'parents_ids'
-                    }
-                })),
-
-                FormField('Words (JSON: [{"word": "target-id"}])', window.M.UI.Textarea({
-                    attrs: {
-                        class: tw`${token('input')} w-full font-mono text-sm min-h-[100px]`,
-                        placeholder: '[{"React": "react"}, {"Hook": "react-hooks"}]',
-                        gkey: 'wiki:form:input',
-                        'data-field': 'words'
-                    }
-                }, [getValue('words', JSON.stringify(article.words, null, 2))])),
-
-                FormField('Related Articles (JSON: [{"id": "...", "title": {...}}])', window.M.UI.Textarea({
-                    attrs: {
-                        class: tw`${token('input')} w-full font-mono text-sm min-h-[100px]`,
-                        placeholder: '[{"id": "react-component", "title": {"en": "Components", "ar": "المكونات"}}]',
-                        gkey: 'wiki:form:input',
-                        'data-field': 'siblings'
-                    }
-                }, [getValue('siblings', JSON.stringify(article.siblings, null, 2))])),
-
-                FormField('Sort Order', window.M.UI.Input({
-                    attrs: {
-                        type: 'number',
-                        class: tw`${token('input')} w-48`,
-                        value: getValue('sort', article.sort),
-                        gkey: 'wiki:form:input',
-                        'data-field': 'sort'
-                    }
-                })),
-
-                // Actions
-                D.Containers.Div({
-                    attrs: { class: tw`flex gap-4 mt-8` }
-                }, [
+                    }),
                     D.Forms.Button({
                         attrs: {
-                            gkey: 'wiki:article:save',
-                            class: tw`${token('btn/solid')} ${token('btn/lg')}`
-                        }
-                    }, ['💾 ' + t('wiki.save', state)]),
-                    D.Forms.Button({
-                        attrs: {
-                            gkey: 'wiki:article:cancel',
-                            class: tw`${token('btn/ghost')} ${token('btn/lg')}`
-                        }
-                    }, [t('wiki.cancel', state)]),
-
-                    // Delete button - always render but hide if new
-                    D.Forms.Button({
-                        attrs: {
-                            gkey: 'wiki:article:delete',
-                            class: tw`${token('btn/destructive')} ${token('btn/lg')} ml-auto`,
-                            style: `display: ${!isNew ? 'block' : 'none'}`
-                        }
-                    }, ['🗑️ ' + t('wiki.delete', state)])
+                            gkey: 'wiki:form:list-add',
+                            'data-field': field
+                        },
+                        class: tw`${token('btn/solid')} ${token('btn/sm')}`
+                    }, ['+'])
                 ])
             ]);
+
+            const renderWordRows = (items, field) => D.Containers.Div({ attrs: { class: tw`space-y-2` } }, [
+                (items || []).map((row, idx) => D.Containers.Div({
+                    attrs: { class: tw`grid grid-cols-5 gap-2 items-center` }
+                }, [
+                    window.M.UI.Input({ attrs: { class: tw`col-span-2 ${token('input')}` , value: row.term || '', 'data-field': field, 'data-index': idx, 'data-prop': 'term', gkey: 'wiki:form:list-update' } }),
+                    window.M.UI.Input({ attrs: { class: tw`col-span-2 ${token('input')}` , value: row.target || '', 'data-field': field, 'data-index': idx, 'data-prop': 'target', gkey: 'wiki:form:list-update' } }),
+                    D.Forms.Button({ attrs: { gkey: 'wiki:form:list-remove', 'data-field': field, 'data-index': idx }, class: tw`${token('btn/destructive')} ${token('btn/sm')}` }, ['✖'])
+                ])),
+                D.Forms.Button({ attrs: { gkey: 'wiki:form:list-add', 'data-field': field }, class: tw`${token('btn/outline')} ${token('btn/sm')}` }, [lang === 'ar' ? 'إضافة كلمة' : 'Add word'])
+            ]);
+
+            const renderSiblingRows = (items, field) => D.Containers.Div({ attrs: { class: tw`space-y-3` } }, [
+                (items || []).map((row, idx) => D.Containers.Div({ attrs: { class: tw`grid grid-cols-7 gap-2 items-center` } }, [
+                    window.M.UI.Input({ attrs: { class: tw`${token('input')} col-span-2`, value: row.id || '', 'data-field': field, 'data-index': idx, 'data-prop': 'id', gkey: 'wiki:form:list-update' } }),
+                    window.M.UI.Input({ attrs: { class: tw`${token('input')} col-span-2`, value: row.title_en || '', 'data-field': field, 'data-index': idx, 'data-prop': 'title_en', gkey: 'wiki:form:list-update' } }),
+                    window.M.UI.Input({ attrs: { class: tw`${token('input')} col-span-2`, dir: 'rtl', value: row.title_ar || '', 'data-field': field, 'data-index': idx, 'data-prop': 'title_ar', gkey: 'wiki:form:list-update' } }),
+                    D.Forms.Button({ attrs: { gkey: 'wiki:form:list-remove', 'data-field': field, 'data-index': idx }, class: tw`${token('btn/destructive')} ${token('btn/sm')}` }, ['✖'])
+                ])),
+                D.Forms.Button({ attrs: { gkey: 'wiki:form:list-add', 'data-field': field }, class: tw`${token('btn/outline')} ${token('btn/sm')}` }, [lang === 'ar' ? 'إضافة علاقة' : 'Add related'])
+            ]);
+
+            return D.Containers.Div({ attrs: { class: tw`max-w-5xl mx-auto space-y-6` } }, [
+                D.Text.H2({ attrs: { class: tw`text-3xl font-bold` } }, [isNew ? '➕ ' + t('wiki.new_article', state) : '✏️ ' + t('wiki.edit', state)]),
+
+                FormField('Article ID', window.M.UI.Input({
+                    attrs: {
+                        class: tw`${token('input')} w-full`,
+                        placeholder: 'unique-article-id',
+                        value: draft.id,
+                        disabled: !isNew,
+                        gkey: 'wiki:form:input',
+                        'data-field': 'id'
+                    }
+                })),
+
+                D.Containers.Div({ attrs: { class: tw`grid grid-cols-2 gap-4` } }, [
+                    FormField('Title (English)', window.M.UI.Input({ attrs: { class: tw`${token('input')} w-full`, value: draft.title_en || '', 'data-field': 'title_en', gkey: 'wiki:form:input' } })),
+                    FormField('العنوان (عربي)', window.M.UI.Input({ attrs: { class: tw`${token('input')} w-full`, dir: 'rtl', value: draft.title_ar || '', 'data-field': 'title_ar', gkey: 'wiki:form:input' } }))
+                ]),
+
+                D.Containers.Div({ attrs: { class: tw`grid grid-cols-2 gap-4` } }, [
+                    FormField('Content (English - Markdown)', window.M.UI.Textarea({ attrs: { class: tw`${token('input')} w-full font-mono text-sm min-h-[260px]`, value: draft.content_en || '', 'data-field': 'content_en', gkey: 'wiki:form:input' } })),
+                    FormField('المحتوى (عربي - Markdown)', window.M.UI.Textarea({ attrs: { class: tw`${token('input')} w-full font-mono text-sm min-h-[260px]`, dir: 'rtl', value: draft.content_ar || '', 'data-field': 'content_ar', gkey: 'wiki:form:input' } }))
+                ]),
+
+                FormField(lang === 'ar' ? 'كلمات مفتاحية' : 'Keywords', renderChips(draft.keywords || [], 'keywords', lang === 'ar' ? 'أدخل كلمة وأضفها' : 'Type keyword then add')),
+                FormField(lang === 'ar' ? 'المسار الأب' : 'Parent IDs', renderChips(draft.parents_ids || [], 'parents_ids', lang === 'ar' ? 'id الأب' : 'parent id')),
+                FormField(lang === 'ar' ? 'روابط الكلمات داخل النص' : 'Smart links', renderWordRows(draft.words || [], 'words')),
+                FormField(lang === 'ar' ? 'مقالات مرتبطة' : 'Related articles', renderSiblingRows(draft.siblings || [], 'siblings')),
+                FormField(lang === 'ar' ? 'الترتيب' : 'Sort order', window.M.UI.Input({ attrs: { type: 'number', class: tw`${token('input')} w-full max-w-xs`, value: draft.sort || 0, 'data-field': 'sort', gkey: 'wiki:form:input' } })),
+
+                D.Containers.Div({ attrs: { class: tw`flex items-center gap-3` } }, [
+                    D.Forms.Button({ attrs: { gkey: 'wiki:article:save', class: tw`${token('btn/solid')} ${token('btn/lg')}` } }, ['💾 ' + t('wiki.save', state)]),
+                    D.Forms.Button({ attrs: { gkey: 'wiki:article:cancel', class: tw`${token('btn/ghost')} ${token('btn/lg')}` } }, [t('wiki.cancel', state)]),
+                    D.Forms.Button({ attrs: { gkey: 'wiki:article:delete', class: tw`${token('btn/destructive')} ${token('btn/lg')}`, style: `display:${isNew ? 'none' : 'inline-flex'}` } }, ['🗑️ ' + t('wiki.delete', state)])
+                ])
+            ]);
+        };
+
+        window.M.UI.WikiEditorModal = function ({ state, actions }) {
+            if (!state.showEditorModal) return null;
+            return M.UI.Modal({
+                open: state.showEditorModal,
+                size: 'xl',
+                title: state.env.lang === 'ar' ? 'إدارة مقالات الويكي' : 'Manage wiki article',
+                content: window.M.UI.WikiEditor({ state, actions }),
+                actions: []
+            });
         };
 
         // Styles - Enhanced dark mode

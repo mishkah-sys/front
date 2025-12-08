@@ -201,6 +201,8 @@
             sidebarOpen: true,
             expandedNodes: new Set(),
             _formData: {},
+            editorDraft: null,
+            showEditorModal: false,
             loading: false
         };
 
@@ -209,6 +211,54 @@
         document.documentElement.className = storedTheme;
 
         let appInstance = null;
+
+        const parseJsonSafe = (value, fallback) => {
+            try {
+                const parsed = JSON.parse(value);
+                return parsed ?? fallback;
+            } catch (e) {
+                return fallback;
+            }
+        };
+
+        const buildArticleFromForm = (formData, activeId) => {
+            const toArray = (value) => {
+                if (Array.isArray(value)) return value.filter(Boolean);
+                return (value || '').split(',').map(v => v.trim()).filter(Boolean);
+            };
+
+            const safe = formData || {};
+            const id = (safe.id || activeId || `wiki-${Date.now()}`).trim();
+
+            const words = Array.isArray(safe.words)
+                ? safe.words
+                    .filter(w => w && w.term && w.target)
+                    .map(w => ({ [w.term.trim()]: w.target.trim() }))
+                : parseJsonSafe(safe.words || '[]', []);
+
+            const siblings = Array.isArray(safe.siblings)
+                ? safe.siblings
+                    .filter(s => s && s.id)
+                    .map(s => ({ id: s.id.trim(), title: { en: s.title_en || '', ar: s.title_ar || '' } }))
+                : parseJsonSafe(safe.siblings || '[]', []);
+
+            return {
+                id,
+                title: {
+                    en: safe.title_en || '',
+                    ar: safe.title_ar || ''
+                },
+                content: {
+                    en: safe.content_en || '',
+                    ar: safe.content_ar || ''
+                },
+                keywords: toArray(safe.keywords),
+                parents_ids: toArray(safe.parents_ids || safe.parent_ids),
+                words,
+                siblings,
+                sort: Number(safe.sort || 0)
+            };
+        };
 
         const actions = {
             setLang: (l) => {
@@ -301,27 +351,61 @@
                         title_ar: article.title.ar || '',
                         content_en: article.content.en || '',
                         content_ar: article.content.ar || '',
-                        keywords: (article.keywords || []).join(', '),
-                        parent_ids: (article.parents_ids || []).join(', '),
-                        words: JSON.stringify(article.words || [], null, 2),
-                        siblings: JSON.stringify(article.siblings || [], null, 2),
+                        keywords: article.keywords || [],
+                        parents_ids: article.parents_ids || [],
+                        words: (article.words || []).map(w => {
+                            const key = Object.keys(w || {})[0];
+                            return { term: key || '', target: key ? w[key] : '' };
+                        }),
+                        siblings: (article.siblings || []).map(s => ({ id: s.id || '', title_en: s.title?.en || '', title_ar: s.title?.ar || '' })),
                         sort: article.sort || 0
                     };
 
                     console.log('[WikiApp] Pre-filled form data from DB:', formData);
-                    appInstance.setState(s => ({ ...s, viewMode: 'edit', activeId: id, _formData: formData }));
+                    appInstance.setState(s => ({
+                        ...s,
+                        viewMode: 'view',
+                        activeId: id,
+                        _formData: formData,
+                        editorDraft: formData,
+                        showEditorModal: true
+                    }));
 
                 } catch (e) {
                     console.error('[WikiApp] Error loading article for edit:', e);
                 }
             },
-            cancelEdit: () => appInstance.setState(s => ({ ...s, viewMode: 'view' })),
-            saveArticle: async (article, user) => {
-                await WikiService.save(article, user);
+            cancelEdit: () => appInstance.setState(s => ({ ...s, viewMode: 'view', _formData: {}, editorDraft: null, showEditorModal: false })),
+            saveArticle: async (article, user = 'User') => {
+                const state = appInstance.getState();
+                const source = article || buildArticleFromForm(state.editorDraft || state._formData, state.activeId);
+                if (!source.id) {
+                    alert('Please set an article ID');
+                    return;
+                }
+
+                await WikiService.save(source, user);
                 const articles = await WikiService.getAll();
-                appInstance.setState(s => ({ ...s, articles, viewMode: 'view', activeId: article.id }));
+                appInstance.setState(s => ({ ...s, articles, viewMode: 'view', activeId: source.id, _formData: {}, editorDraft: null, showEditorModal: false }));
             },
-            createArticle: () => appInstance.setState(s => ({ ...s, activeId: null, viewMode: 'edit' })),
+            createArticle: () => appInstance.setState(s => ({
+                ...s,
+                activeId: null,
+                viewMode: 'view',
+                editorDraft: {
+                    id: '',
+                    title_en: '',
+                    title_ar: '',
+                    content_en: '',
+                    content_ar: '',
+                    keywords: [],
+                    parents_ids: [],
+                    words: [],
+                    siblings: [],
+                    sort: 0
+                },
+                showEditorModal: true
+            })),
             deleteArticle: async (id) => {
                 if (!confirm('Are you sure?')) return;
                 await WikiService.delete(id);
@@ -456,6 +540,83 @@
                     if (id) actions.navigate(id);
                 }
             },
+            'wiki:form:input': {
+                on: ['input', 'change'],
+                gkeys: ['wiki:form:input'],
+                handler: (e, ctx) => {
+                    const field = e.target.getAttribute('data-field');
+                    const value = e.target.value;
+                    if (!field) return;
+                    ctx.setState(s => ({
+                        ...s,
+                        _formData: { ...s._formData, [field]: value },
+                        editorDraft: { ...(s.editorDraft || {}), [field]: value }
+                    }));
+                }
+            },
+            'wiki:form:list-add': {
+                on: ['click'],
+                gkeys: ['wiki:form:list-add'],
+                handler: (e, ctx) => {
+                    const field = e.target.getAttribute('data-field');
+                    if (!field) return;
+                    const input = e.target.closest('div')?.querySelector('input');
+                    const typed = input ? (input.value || '').trim() : '';
+                    ctx.setState(s => {
+                        const draft = { ...(s.editorDraft || {}) };
+                        const list = Array.isArray(draft[field]) ? draft[field].slice() : [];
+                        if (field === 'words' || field === 'siblings') {
+                            list.push({});
+                        } else if (typed) {
+                            list.push(typed);
+                        } else {
+                            list.push('');
+                        }
+                        draft[field] = list;
+                        return { ...s, editorDraft: draft };
+                    });
+                    if (input) input.value = '';
+                }
+            },
+            'wiki:form:list-remove': {
+                on: ['click'],
+                gkeys: ['wiki:form:list-remove'],
+                handler: (e, ctx) => {
+                    const field = e.target.getAttribute('data-field');
+                    const idx = parseInt(e.target.getAttribute('data-index'), 10);
+                    if (!field || isNaN(idx)) return;
+                    ctx.setState(s => {
+                        const draft = { ...(s.editorDraft || {}) };
+                        const list = Array.isArray(draft[field]) ? draft[field].slice() : [];
+                        list.splice(idx, 1);
+                        draft[field] = list;
+                        return { ...s, editorDraft: draft };
+                    });
+                }
+            },
+            'wiki:form:list-update': {
+                on: ['input', 'change'],
+                gkeys: ['wiki:form:list-update'],
+                handler: (e, ctx) => {
+                    const field = e.target.getAttribute('data-field');
+                    const idx = parseInt(e.target.getAttribute('data-index'), 10);
+                    const prop = e.target.getAttribute('data-prop');
+                    if (!field || isNaN(idx)) return;
+                    ctx.setState(s => {
+                        const draft = { ...(s.editorDraft || {}) };
+                        const list = Array.isArray(draft[field]) ? draft[field].slice() : [];
+                        if (prop) {
+                            const current = { ...(list[idx] || {}) };
+                            current[prop] = e.target.value;
+                            list[idx] = current;
+                        } else {
+                            list[idx] = e.target.value;
+                        }
+                        draft[field] = list;
+                        return { ...s, editorDraft: draft };
+                    });
+                }
+            },
             'wiki:node:toggle': {
                 on: ['click'],
                 gkeys: ['wiki:node:toggle'],
@@ -517,13 +678,7 @@
             'wiki:article:save': {
                 on: ['click'],
                 gkeys: ['wiki:article:save'],
-                handler: (e, ctx) => {
-                    const state = ctx.getState();
-                    const article = state.articles.find(a => a.id === state.activeId);
-                    if (article) {
-                        actions.saveArticle(article, 'User');
-                    }
-                }
+                handler: () => actions.saveArticle(null, 'User')
             },
             'wiki:article:cancel': {
                 on: ['click'],
