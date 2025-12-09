@@ -662,7 +662,19 @@
         </div>
     </div>
 
+
     <script>
+        // ====== Authentication Check =======
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login.html';
+        }
+        // Add token to all requests
+        const authHeaders = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+
         const API_BASE = '/api';
         let currentModel = null;
         let catalog = { text: [], vision: [], audio: [], multimodal: [] };
@@ -780,29 +792,30 @@
                 // Open download modal
                 document.getElementById('download-model-name').textContent = model ? model.name : modelId;
                 document.getElementById('download-modal').classList.add('active');
-                addDownloadLog('● بدء التحميل...');
 
-                // Update UI to show downloading
+                // Reset progress UI
+                updateDownloadProgress(0, 0, 0, 0, '--');
+                addDownloadLog('● جاري الاتصال بـالخادم...');
+
+                //Update UI to show downloading
                 updateModelStatus(modelId, 'downloading');
 
                 const response = await fetch(`${API_BASE}/zoo/download`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: authHeaders,
                     body: JSON.stringify({ model_id: modelId })
                 });
 
                 const result = await response.json();
 
                 if (response.ok) {
-                    // Start polling for status updates
-                    console.log(`Download started: ${result.message}`);
-                    addDownloadLog(`✓ ${result.message}`);
-                    pollModelStatus(modelId);
+                    // Start polling for progress
+                    addDownloadLog(`● بدء التحميل...`);
+                    pollDownloadProgress(modelId);
                 } else {
                     // Error occurred
                     updateModelStatus(modelId, 'error');
                     addDownloadLog(`✗ فشل: ${result.detail || result.message}`, 'error');
-                    console.error(`Download failed: ${result.detail || result.message}`);
                 }
             } catch (error) {
                 console.error('Download failed:', error);
@@ -811,22 +824,64 @@
             }
         }
 
-        // Poll model status
-        async function pollModelStatus(modelId) {
+        // Update download progress UI
+        function updateDownloadProgress(percent, downloaded_mb, total_mb, speed_mbps, eta) {
+            document.getElementById('download-progress-bar').style.width = `${percent}%`;
+            document.getElementById('download-progress-bar').textContent = `${Math.round(percent)}%`;
+            document.getElementById('download-size').textContent = `${downloaded_mb.toFixed(1)} MB / ${total_mb.toFixed(1)} MB`;
+            document.getElementById('download-speed').textContent = `${speed_mbps.toFixed(2)} MB/s`;
+            document.getElementById('download-eta').textContent = eta;
+        }
+
+        // Poll download progress
+        async function pollDownloadProgress(modelId) {
+            let lastPercent = 0;
+
             const poll = async () => {
                 try {
-                    const response = await fetch(`${API_BASE}/zoo/models/${modelId}`);
-                    const model = await response.json();
+                    const response = await fetch(`${API_BASE}/zoo/models/${modelId}`, {
+                        headers: authHeaders
+                    });
+                    const data = await response.json();
 
-                    updateModelStatus(modelId, model.status);
+                    // Update model status
+                    updateModelStatus(modelId, data.status);
 
-                    // Keep polling if still downloading or loading
-                    if (model.status === 'downloading' || model.status === 'loading') {
-                        setTimeout(poll, 2000); // Poll every 2 seconds
-                    } else {
-                        // Complete
+                    // If download_progress exists, update UI
+                    if (data.download_progress) {
+                        const progress = data.download_progress;
+                        const percent = progress.percent || 0;
+                        const downloaded = progress.downloaded_mb || 0;
+                        const total = progress.total_mb || 0;
+                        const speed = progress.speed_mbps || 0;
+
+                        // Calculate ETA
+                        let eta = '--';
+                        if (progress.eta_seconds && progress.eta_seconds > 0) {
+                            const mins = Math.floor(progress.eta_seconds / 60);
+                            const secs = Math.round(progress.eta_seconds % 60);
+                            eta = `${mins}:${secs.toString().padStart(2, '0')}`;
+                        }
+
+                        updateDownloadProgress(percent, downloaded, total, speed, eta);
+
+                        // Log progress milestones
+                        if (percent > lastPercent + 10) {
+                            addDownloadLog(`⬇️ ${Math.round(percent)}% - ${downloaded.toFixed(1)} MB`);
+                            lastPercent = Math.floor(percent / 10) * 10;
+                        }
+                    }
+
+                    // Keep polling if still downloading
+                    if (data.status === 'downloading') {
+                        setTimeout(poll, 1000); // Poll every 1 second
+                    } else if (data.status === 'downloaded' || data.status === 'ready') {
+                        // Download complete
+                        updateDownloadProgress(100, data.download_progress?.total_mb || 0, data.download_progress?.total_mb || 0, 0, '0:00');
+                        addDownloadLog(`✓ اكتمل التحميل! ${(data.download_progress?.total_mb || 0).toFixed(1)} MB`, 'success');
                         updateLoadedStats();
-                        console.log(`${modelId} status: ${model.status}`);
+                    } else if (data.status === 'error') {
+                        addDownloadLog(`✗ فشل التحميل`, 'error');
                     }
                 } catch (error) {
                     console.error('Poll failed:', error);

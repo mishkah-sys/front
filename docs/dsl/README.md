@@ -1,575 +1,269 @@
-# Mishkah DSL Guide - البناء المباشر بدون HTMLx
+# Mishkah DSL: The Golden Path 🌟
 
-## 📖 Introduction
+> **"Simplicity is the ultimate sophistication."**
 
-**DSL (Domain Specific Language)** هو نظام بناء الواجهات بشكل مباشر في JavaScript بدون استخدام templates HTML.
-
-**الفرق عن HTMLx:**
-- **HTMLx**: Template-based (`<template>` tags)  
-- **DSL**: Code-based (JavaScript functions)
+This guide describes the **Canonical Mishkah Way** (The Golden Pythagorean Triangle) to build applications. No magic, no hidden proxies, just pure JavaScript structures.
 
 ---
 
-## 🎯 Why DSL?
+## 0. Setup & Installation 📦
 
-حسب **الركن الثاني من فلسفة مشكاة** (من README-dreams.md):
+To start, simply include the Core, Utils, and UI libraries (and TailwindCSS for styling).
 
-> ### **2. لغة تعريفية مُحكَمة (A Constrained DSL): عقد بَنّاء وآمن**
-> 
-> **المبدأ:** لغات القوالب التقليدية (مثل JSX) تمنح حرية خطيرة. **مشكاة** تقدم **لغة تعريفية خاصة (DSL) تعمل كعقد صارم**.
-> 
-> هذا العقد يفرض **فصلًا قاطعًا بين بنية المكون (`attributes`) وسلوكه (`events`)**.
+```html
+<!-- Mishkah Core & Utils -->
+<script src="/static/lib/mishkah-utils.js"></script>
+<script src="/static/lib/mishkah.core.js"></script>
+<script src="/static/lib/mishkah-ui.js"></script>
 
-**المزايا:**
-1. ✅ **Type Safety** - أخطاء تُكتشف في Build Time
-2. ✅ **Performance** - لا parsing overhead
-3. ✅ **Composability** - إعادة استخدام سهلة
-4. ✅ **Separation of Concerns** - بنية منفصلة عن السلوك
-
----
-
-## 🏗️ DSL Structure
-
-### Core Namespaces
-
-```javascript
-const M = window.Mishkah;  // Core
-const D = M.DSL;            // DSL Atoms
-const U = M.utils;          // Utilities
-const h = D.h || M.h;       // VDOM factory (if needed)
-```
-
-### Atom Categories
-
-```javascript
-D.Containers  // div, section, article, header, footer, main, nav, aside
-D.Text        // p, span, h1-h6, strong, em, a, code, pre
-D.Lists       // ul, ol, li, dl, dt, dd
-D.Forms       // form, label, button, fieldset
-D.Inputs      // input, textarea, select, option
-D.Media       // img, video, audio, picture
-D.Tables      // table, thead, tbody, tr, th, td
-D.SVG         // svg, path, circle, rect, g
-D.Semantic    // details, summary, figure
+<!-- Tailwind CSS (Optional but Recommended) -->
+<script src="https://cdn.tailwindcss.com"></script>
 ```
 
 ---
 
-## ✍️ Basic Syntax
+## 📐 The Golden Pythagorean Triangle
 
-### Creating Elements
+Every Mishkah application consists of exactly three parts:
 
-```javascript
-const D = Mishkah.DSL;
-
-// Basic element
-const heading = D.Text.H1({
-  attrs: { class: 'title' }
-}, ['Welcome to Mishkah']);
-
-// With children
-const card = D.Containers.Div({
-  attrs: { class: 'card' }
-}, [
-  D.Text.H2({}, ['Card Title']),
-  D.Text.P({}, ['Card content here'])
-]);
-```
-
-### Attributes
-
-```javascript
-const link = D.Text.A({
-  attrs: {
-    href: '/about',
-    target: '_blank',
-    class: 'btn btn-primary',
-    'aria-label': 'Learn more'
-  }
-}, ['Learn More']);
-```
-
-### Events (via gkeys)
-
-```javascript
-const button = D.Forms.Button({
-  attrs: {
-    class: 'btn',
-    'data-m-gkey': 'ui:submit-form'  // Event binding via gkey
-  }
-}, ['Submit']);
-```
+1.  **DATABASE (The Soul)**: A single JSON object holding **all** state (Data, Env, i18n).
+2.  **ORDERS (The Mind)**: A collection of event handlers that modify the Database.
+3.  **DSL (The Body)**: A function that turns the Database into a Visual Tree.
 
 ---
 
-## 📦 Complete App Example
-
-### 1. Define Body Function
-
-```javascript
-const D = Mishkah.DSL;
-
-function body(db) {
-  const count = db.data?.count || 0;
-  
-  return D.Containers.Div({
-    attrs: { class: 'app-container' }
-  }, [
-    D.Text.H1({}, ['Counter App']),
-    
-    D.Text.P({
-      attrs: { class: 'count-display' }
-    }, [`Count: ${count}`]),
-    
-    D.Containers.Div({
-      attrs: { class: 'button-group' }
-    }, [
-      D.Forms.Button({
-        attrs: {
-          class: 'btn btn-primary',
-          'data-m-gkey': 'counter:increment'
-        }
-      }, ['+']),
-      
-      D.Forms.Button({
-        attrs: {
-          class: 'btn btn-secondary',
-          'data-m-gkey': 'counter:decrement'
-        }
-      }, ['-']),
-      
-      D.Forms.Button({
-        attrs: {
-          class: 'btn btn-danger',
-          'data-m-gkey': 'counter:reset'
-        }
-      }, ['Reset'])
-    ])
-  ]);
-}
-```
-
-### 2. Define Orders (Event Handlers)
-
-```javascript
-const orders = {
-  'counter.increment': {
-    on: ['click'],
-    gkeys: ['counter:increment'],
-    handler: (e, ctx) => {
-      ctx.setState(state => {
-        return {
-          ...state,
-          data: {
-            ...state.data,
-            count: (state.data.count || 0) + 1
-          }
-        };
-      });
-    }
-  },
-  
-  'counter.decrement': {
-    on: ['click'],
-    gkeys: ['counter:decrement'],
-    handler: (e, ctx) => {
-      ctx.setState(state => {
-        return {
-          ...state,
-          data: {
-            ...state.data,
-            count: (state.data.count || 0) - 1
-          }
-        };
-      });
-    }
-  },
-  
-  'counter.reset': {
-    on: ['click'],
-    gkeys: ['counter:reset'],
-    handler: (e, ctx) => {
-      ctx.setState(state => {
-        return {
-          ...state,
-          data: {
-            ...state.data,
-            count: 0
-          }
-        };
-      });
-    }
-  }
-};
-```
-
-### 3. Create App
-
-```javascript
-MishkahAuto.ready(M => {
-  // Set the body function FIRST
-  M.app.setBody(body);
-  
-  // Then create app
-  const app = M.app.createApp({
-    env: { theme: 'dark', lang: 'en' },
-    data: { count: 0 }
-  }, orders);
-  
-  // Mount
-  app.mount('#app');
-});
-```
-
----
-
-## 🎨 Advanced Patterns
-
-### Conditional Rendering
-
-```javascript
-function body(db) {
-  const isLoggedIn = db.data?.user?.loggedIn || false;
-  
-  return D.Containers.Div({}, [
-    D.Text.H1({}, ['Dashboard']),
-    
-    // Conditional: use ternary or array filter
-    isLoggedIn 
-      ? D.Text.P({}, ['Welcome back!'])
-      : D.Text.P({}, ['Please log in']),
-    
-    // Or using filter
-    ...(isLoggedIn 
-      ? [D.Forms.Button({ attrs: { 'data-m-gkey': 'auth:logout' } }, ['Logout'])]
-      : [D.Forms.Button({ attrs: { 'data-m-gkey': 'auth:login' } }, ['Login'])]
-    )
-  ]);
-}
-```
-
-### Loop Rendering
-
-```javascript
-function body(db) {
-  const users = db.data?.users || [];
-  
-  return D.Containers.Div({}, [
-    D.Text.H1({}, ['Users']),
-    
-    D.Lists.Ul({}, 
-      users.map((user, index) => 
-        D.Lists.Li({
-          attrs: { 
-            key: user.id || index  // Important: use key for lists
-          }
-        }, [
-          D.Text.Span({}, [user.name]),
-          D.Text.Span({ attrs: { class: 'email' } }, [user.email])
-        ])
-      )
-    )
-  ]);
-}
-```
-
-### Components (Reusable Functions)
-
-```javascript
-// Component: Card
-function Card({ title, content, footer }) {
-  return D.Containers.Div({
-    attrs: { class: 'card' }
-  }, [
-    D.Containers.Div({ attrs: { class: 'card-header' } }, [
-      D.Text.H3({}, [title])
-    ]),
-    
-    D.Containers.Div({ attrs: { class: 'card-body' } }, [
-      D.Text.P({}, [content])
-    ]),
-    
-    footer && D.Containers.Div({
-      attrs: { class: 'card-footer' }
-    }, [footer])
-  ].filter(Boolean));  // Remove null footer
-}
-
-// Usage
-function body(db) {
-  return D.Containers.Div({}, [
-    Card({
-      title: 'Welcome',
-      content: 'This is a reusable card component',
-      footer: D.Forms.Button({}, ['Learn More'])
-    }),
-    
-    Card({
-      title: 'Another Card',
-      content: 'No footer here',
-      footer: null
-    })
-  ]);
-}
-```
-
----
-
-## 🌐 i18n with DSL
-
-### Using Translation Keys
-
-```javascript
-function body(db) {
-  const lang = db.env?.lang || 'en';
-  const dict = db.i18n?.dict || {};
-  
-  // Helper function
-  const t = (key) => dict[key]?.[lang] || key;
-  
-  return D.Containers.Div({}, [
-    D.Text.H1({}, [t('welcome')]),
-    D.Text.P({}, [t('description')])
-  ]);
-}
-
-// Or use Mishkah's built-in t()
-function bodyWithBuiltIn(db) {
-  return D.Containers.Div({}, [
-    D.Text.H1({ attrs: { t: 'welcome' } }),
-    D.Text.P({ attrs: { t: 'description' } })
-  ]);
-}
-```
-
-### Database with i18n
+## 1. DATABASE (The Soul) 💾
+Your Single Source of Truth. If it's not here, it doesn't exist.
 
 ```javascript
 const database = {
-  env: { lang: 'ar', dir: 'rtl' },
+  // 1. Data: Your application logic state
+  data: {
+    count: 0,
+    history: []
+  },
+
+  // 2. Env: System state (Theming, Config)
+  env: {
+    theme: 'light',  // 'light' | 'dark'
+    lang: 'ar',      // 'ar' | 'en'
+    dir: 'rtl'       // 'rtl' | 'ltr'
+  },
+
+  // 3. i18n: Your text content (Key-Based)
   i18n: {
     dict: {
-      welcome: { ar: 'مرحباً', en: 'Welcome' },
-      description: { ar: 'وصف التطبيق', en: 'App description' }
+      'app_title': { ar: 'عداد مشكاة', en: 'Mishkah Counter' },
+      'increment': { ar: 'زيادة +', en: 'Increment +' },
+      'toggle_theme': { ar: 'تبديل الثيم', en: 'Toggle Theme' },
+      'toggle_lang': { ar: 'English', en: 'عربي' }
     }
-  },
-  data: {}
+  }
 };
 ```
 
 ---
 
-## 🎯 Complete Todo App (DSL)
+## 2. ORDERS (The Mind) 🧠
+Logic lives **only** here. We never mix logic with views.
+We use **`gkey`** (Global Key) to bind DOM elements to these orders.
 
 ```javascript
-const D = Mishkah.DSL;
-
-// Component: TodoItem
-function TodoItem(todo, index) {
-  return D.Lists.Li({
-    attrs: {
-      key: todo.id,
-      class: todo.completed ? 'todo-item completed' : 'todo-item'
-    }
-  }, [
-    D.Inputs.Input({
-      attrs: {
-        type: 'checkbox',
-        checked: todo.completed,
-        'data-m-gkey': `todo:toggle:${todo.id}`
-      }
-    }),
-    
-    D.Text.Span({ attrs: { class: 'todo-text' } }, [todo.text]),
-    
-    D.Forms.Button({
-      attrs: {
-        class: 'btn-sm btn-danger',
-        'data-m-gkey': `todo:delete:${todo.id}`
-      }
-    }, ['×'])
-  ]);
-}
-
-// Main Body
-function body(db) {
-  const todos = db.data?.todos || [];
-  const newTodo = db.data?.newTodo || '';
-  
-  return D.Containers.Main({
-    attrs: { class: 'todo-app' }
-  }, [
-    D.Text.H1({}, ['Todo List']),
-    
-    // Add Todo Form
-    D.Forms.Form({
-      attrs: { class: 'add-todo-form' }
-    }, [
-      D.Inputs.Input({
-        attrs: {
-          type: 'text',
-          value: newTodo,
-          placeholder: 'New task...',
-          'data-m-gkey': 'todo:input'
-        }
-      }),
-      
-      D.Forms.Button({
-        attrs: {
-          type: 'submit',
-          class: 'btn btn-primary',
-          'data-m-gkey': 'todo:add'
-        }
-      }, ['Add'])
-    ]),
-    
-    // Todo List
-    D.Lists.Ul({
-      attrs: { class: 'todo-list' }
-    }, todos.map((todo, i) => TodoItem(todo, i))),
-    
-    // Stats
-    D.Text.P({ attrs: { class: 'todo-stats' } }, [
-      `${todos.filter(t => !t.completed).length} / ${todos.length} remaining`
-    ])
-  ]);
-}
-
-// Orders
 const orders = {
-  'todo.input': {
-    on: ['input'],
-    gkeys: ['todo:input'],
-    handler: (e, ctx) => {
-      ctx.setState(s => ({
-        ...s,
-        data: { ...s.data, newTodo: e.target.value }
-      }));
+  // Pattern: 'Namespace.Action'
+  'counter.increment': {
+    on: ['click'],           // Event to listen for
+    gkeys: ['btn:inc'],      // Global Key triggers
+    handler: (e, ctx) => {   // The Logic
+      // UPDATE STATE
+      ctx.setState(state => {
+        const newState = { ...state };
+        newState.data.count += 1;
+        return newState;
+      });
     }
   },
-  
-  'todo.add': {
+
+  'sys.toggleTheme': {
     on: ['click'],
-    gkeys: ['todo:add'],
+    gkeys: ['sys:theme'],
     handler: (e, ctx) => {
-      e.preventDefault();
-      ctx.setState(s => {
-        const text = s.data.newTodo?.trim();
-        if (!text) return s;
-        
-        return {
-          ...s,
-          data: {
-            ...s.data,
-            todos: [
-              ...s.data.todos,
-              { id: Date.now(), text, completed: false }
-            ],
-            newTodo: ''
-          }
-        };
+      ctx.setState(state => {
+        const s = { ...state };
+        s.env.theme = s.env.theme === 'light' ? 'dark' : 'light';
+        return s;
       });
     }
   },
   
-  'todo.toggle': {
-    on: ['change'],
-    gkeys: ['todo:toggle:*'],  // Wildcard pattern
-    handler: (e, ctx) => {
-      const id = parseInt(e.target.dataset.mGkey.split(':')[2]);
-      ctx.setState(s => ({
-        ...s,
-        data: {
-          ...s.data,
-          todos: s.data.todos.map(t =>
-            t.id === id ? { ...t, completed: !t.completed } : t
-          )
-        }
-      }));
-    }
-  },
-  
-  'todo.delete': {
+  'sys.toggleLang': {
     on: ['click'],
-    gkeys: ['todo:delete:*'],
+    gkeys: ['sys:lang'],
     handler: (e, ctx) => {
-      const id = parseInt(e.target.dataset.mGkey.split(':')[2]);
-      ctx.setState(s => ({
-        ...s,
-        data: {
-          ...s.data,
-          todos: s.data.todos.filter(t => t.id !== id)
-        }
-      }));
+      ctx.setState(state => {
+        const s = { ...state };
+        s.env.lang = s.env.lang === 'ar' ? 'en' : 'ar';
+        s.env.dir = s.env.lang === 'ar' ? 'rtl' : 'ltr';
+        return s;
+      });
     }
   }
 };
-
-// Initialize
-MishkahAuto.ready(M => {
-  M.app.setBody(body);
-  
-  const app = M.app.createApp({
-    env: { theme: 'dark', lang: 'en' },
-    data: {
-      todos: [],
-      newTodo: ''
-    }
-  }, orders);
-  
-  app.mount('#app');
-});
 ```
 
 ---
 
-## 🆚 DSL vs HTMLx Comparison
+## 3. DSL (The Body) 🦴
+Pure JavaScript functions. No JSX compiler needed.
+We use **Direct DSL** (`D.Tag`) for maximum readability and AI safety.
 
-### HTMLx (Template-Based)
-```html
-<template id="app">
-  <script type="application/json" data-m-data data-m-path="data">
-    { "count": 0 }
-  </script>
-  
-  <div>
-    <h1>{state.data.count}</h1>
-    <button data-m-order="increment">+</button>
-  </div>
-</template>
-```
-
-### DSL (Code-Based)
+### The Syntax
 ```javascript
+D.Tag( Config, Children )
+```
+- **Tag**: The HTML element (e.g., `D.Div`, `D.H1`, `D.Button`).
+- **Config**: `{ attrs: {...}, events: {...} }`.
+- **Children**: `[ ...Array of Nodes... ]`.
+
+### ⚡ Event Handling Strategy
+1.  **Use `gkey` (Recommended)**: For **Business Logic** that changes State. Delegates to `Orders`.
+    ```javascript
+    D.Button({ attrs: { gkey: 'save_btn' } }, ['Save'])
+    ```
+2.  **Use `events` (Sparse)**: For **Stateless Effects** only (e.g., preventing default submit, simple alerts, or interacting with 3rd party libs). **Do not hold state here.**
+    ```javascript
+    D.Form({ events: { submit: e => e.preventDefault() } }, [...])
+    ```
+
+### The Example (Body Function)
+
+```javascript
+const D = Mishkah.DSL;
+const UI = Mishkah.UI;
+
 function body(db) {
-  return D.Containers.Div({}, [
-    D.Text.H1({}, [db.data.count]),
-    D.Forms.Button({
-      attrs: { 'data-m-gkey': 'counter:increment' }
-    }, ['+'])
-  ]);
+  // Helper for Translation
+  // t('key') -> returns string based on db.env.lang
+  const t = (key) => db.i18n.dict[key][db.env.lang] || key;
+
+  return D.Div({ 
+      attrs: { 
+        class: 'app-container',
+        'data-theme': db.env.theme // CSS Variables hook
+      } 
+    }, [
+      
+      // Header with Switchers
+      D.Header({ attrs: { class: 'flex justify-between p-4' } }, [
+        D.H1({}, [ t('app_title') ]),
+        
+        D.Div({ attrs: { class: 'gap-2 flex' } }, [
+          D.Button({ attrs: { gkey: 'sys:theme' } }, [ t('toggle_theme') ]),
+          D.Button({ attrs: { gkey: 'sys:lang' } }, [ t('toggle_lang') ])
+        ])
+      ]),
+
+      // Main Content
+      D.Main({ attrs: { class: 'p-10 text-center' } }, [
+        
+        // Dynamic Data Display
+        D.H2({ attrs: { class: 'text-6xl font-bold mb-4' } }, [ 
+          String(db.data.count) 
+        ]),
+
+        // Interactive Elements (The Button)
+        // Notice: NO onClick here! We use gkey.
+        D.Button({ 
+          attrs: { 
+            class: 'btn-primary',
+            gkey: 'btn:inc' // Binds to 'counter.increment' order
+          } 
+        }, [ 
+          t('increment') 
+        ])
+
+      ])
+    ]);
 }
 ```
 
-**When to Use Each:**
-- **HTMLx**: Designers, rapid prototyping, simple apps
-- **DSL**: Type safety, complex logic, large teams
+---
+
+## 🚀 Launching the App
+
+```javascript
+// 1. Register the Body
+Mishkah.app.setBody(body);
+
+// 2. Create and Mount
+Mishkah.app.create(database, orders).mount('#app');
+```
 
 ---
 
-## 🏁 Summary
+## 🎨 Best Practices
 
-**DSL Workflow:**
-1. Define `body(db)` function
-2. Define `orders` object
-3. Call `M.app.setBody(body)`
-4. Call `M.app.createApp(database, orders)`
-5. Call `app.mount(selector)`
+### 1. i18n Strategy (Key-Base)
+Don't use `if (lang == 'ar')`. Use keys!
+- **Bad**: `['مرحبا']`
+- **Good**: `[ t('welcome_msg') ]`
 
-**Key Principles:**
-- ✅ **Separation**: Structure (body) ≠ Behavior (orders)
-- ✅ **Immutability**: Always return new state in `setState`
-- ✅ **Composition**: Build reusable components
-- ✅ **Keys**: Use `key` attribute for lists
+### 2. Theming & CSS Variables
+Use CSS Variables controlled by a root attribute.
+```css
+/* In your CSS */
+.app-container[data-theme="light"] { --bg: #ffffff; --text: #000000; }
+.app-container[data-theme="dark"]  { --bg: #1a1a1a; --text: #ffffff; }
 
-**الآن أنت تكتب Mishkah بنقاء!** 🎯
+body { background: var(--bg); color: var(--text); }
+```
+
+### 3. TailwindCSS & Tokens
+We love Tailwind. Just pass it in `class`.
+```javascript
+D.Div({ attrs: { class: 'bg-blue-500 text-white p-4 rounded-lg' } }, [...])
+```
+
+
+### 4. UI Library (Don't Re-invent the Wheel!) 🎨
+**Philosophy**: The fastest code is the code you don't write. Mishkah UI is "Solution-First".
+Instead of creating a new `Card` or `Modal` from scratch, use the battle-tested **`Mishkah.UI`**.
+
+**[👉 Read the Full UI Reference](../ui/README.md)**
+
+#### The "Famous" Components List
+These are built-in and ready to use in `mishkah-ui.js`:
+
+| Category | Components |
+|:---|:---|
+| **Structure** | `UI.AppRoot`, `UI.AppShell`, `UI.Navbar`, `UI.Sidebar`, `UI.Drawer` |
+| **Logic** | `UI.ThemeToggleIcon` (Dark/Light), `UI.LanguageSwitch` (Ar/En) |
+| **Input** | `UI.Button`, `UI.Input`, `UI.Select`, `UI.Switcher`, `UI.NumpadDecimal` |
+| **Display** | `UI.Card`, `UI.StatCard`, `UI.SweetNotice`, `UI.Badge`, `UI.Chip` |
+| **Data** | `UI.Table`, `UI.List`, `UI.Chart.Line`, `UI.Chart.Bar` |
+| **Feedback** | `UI.Modal`, `UI.Toast`, `UI.EmptyState` |
+
+**Best Practice:**
+If you need a component that doesn't exist (e.g., `VideoPlayer`), add it to your local `ui-extensions.js` following the same pattern, rather than writing raw DSL in your views. **Always extend, never hardcode.**
+
+```javascript
+// Example: instant premium button
+UI.Button({ label: t('save'), variant: 'solid', gkey: 'action:save' })
+```
+
+---
+
+## 🤖 AI Prompting (The Secret Weapon)
+
+When asking an AI (like Gemini or ChatGPT) to write Mishkah code, copy-paste this system instruction for best results:
+
+```text
+You are a Mishkah Expert.
+1. USE ONLY Direct DSL syntax: D.Tag({ attrs: {...} }, [...children]).
+2. DO NOT use h() or strings for tags.
+3. SEPARATE Logic (Orders) from View (DSL).
+4. USE gkey for event binding of STATE logic.
+5. USE events object ONLY for stateless DOM effects (e.g. preventDefault).
+6. ALWAYS implement i18n using t('key') pattern and db.i18n structure.
+7. PREFER UI.* components when available.
+```
